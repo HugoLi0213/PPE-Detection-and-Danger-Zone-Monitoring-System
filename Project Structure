@@ -6,7 +6,7 @@ PPE-Detection-and-Danger-Zone-Monitoring-System/
 ├── templates/
 │   └── index.html
 ├── models/
-│   └── best.pt  # Your trained YOLOv8 model
+│   └── best.pt  #  trained YOLOv8 model
 └── datasets/
     ├── images/  # Directory for images
     │   ├── train/
