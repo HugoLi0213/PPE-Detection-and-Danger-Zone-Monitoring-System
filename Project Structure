@@ -4,13 +4,15 @@ PPE-Detection-and-Danger-Zone-Monitoring-System/
 ├── static/
 │   └── styles.css
 ├── templates/
-│   └── index.html
+│   ├── index.html
+│   ├── manage.html   # New HTML template for managing danger zones
+│   └── stats.html    # New HTML template for displaying PPE statistics
 ├── models/
-│   └── best.pt  #  trained YOLOv8 model
+│   └── best.pt       # Trained YOLOv8 model
 └── datasets/
-    ├── images/  # Directory for images
+    ├── images/       # Directory for images
     │   ├── train/
     │   └── val/
-    └── labels/  # Directory for labels
+    └── labels/       # Directory for labels
         ├── train/
         └── val/
