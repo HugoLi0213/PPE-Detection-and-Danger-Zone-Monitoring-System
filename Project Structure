@@ -1,12 +1,34 @@
 PPE-Detection-and-Danger-Zone-Monitoring-System/
 │
-├── app.py
-├── static/
-│   └── styles.css
-├── templates/
-│   ├── index.html
-│   ├── manage.html   # New HTML template for managing danger zones
-│   └── stats.html    # New HTML template for displaying PPE statistics
-├── models/
-│   └── best.pt       # Trained YOLOv8 model
-
+├── app.py                  # Main Flask application entry point
+│                          # Handles routing, video streams, and API endpoints
+│
+├── static/                 # Static files directory
+│   └── styles.css         # CSS styles for the web interface
+│                          # Contains layout, colors, and responsive design
+│
+├── templates/             # HTML templates directory
+│   ├── index.html        # Main dashboard page with video feeds
+│   │                     # Shows PPE detection and danger zone monitoring
+│   │
+│   ├── manage.html       # Management interface for danger zones
+│   │                     # Allows drawing and configuring danger zones
+│   │
+│   └── stats.html        # Statistics and analytics dashboard
+│                         # Shows PPE compliance and violation history
+│
+├── models/               # Directory for ML models
+│   └── best.pt          # YOLOv8 trained model for PPE detection
+│                        # Contains weights for helmet, vest, gloves detection
+│
+├── utils/               # Utility modules directory
+│   ├── __init__.py     # Makes utils a Python package
+│   │
+│   ├── detector.py     # PPE detection implementation
+│   │                   # Uses YOLOv8 for real-time PPE detection
+│   │
+│   └── zone_monitor.py # Danger zone monitoring implementation
+│                       # Handles zone definition and violation detection
+│
+└── requirements.txt     # Project dependencies
+                        # Lists all required Python packages and versions
