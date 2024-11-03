@@ -19,7 +19,7 @@ PPE-Detection-and-Danger-Zone-Monitoring-System/
 │
 ├── models/               # Directory for ML models
 │   └── best.pt          # YOLOv8 trained model for PPE detection
-│                        # Contains weights for helmet, vest, gloves detection
+│                        # Contains weights for PPE detection
 │
 ├── utils/               # Utility modules directory
 │   ├── __init__.py     # Makes utils a Python package
