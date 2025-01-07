@@ -3,7 +3,7 @@ from ultralytics import YOLO
 import numpy as np
 
 # Paths to input image and pre-trained models
-image_path = "pic2.jpg"  # Change the image for detection
+image_path = "pic1.jpg"  # Change the image for detection
 person_model_path = "yolov8s.pt"  
 ppe_model_path = "ovu.pt"  # Replace with a model pre-trained for helmet detection
 
@@ -15,16 +15,16 @@ person_model = YOLO(person_model_path)  # Person detection model
 ppe_model = YOLO(ppe_model_path)  # Custom helmet detection model
 
 # Function to calculate IoU based on the helmet bounding box
-def calculate_overlap(object_box, person_box):
+def calculate_overlap(object_box, area_box):
     # Unpack box coordinates
-    hx1, hy1, hx2, hy2 = object_box
-    px1, py1, px2, py2 = person_box
+    ox1, oy1, ox2, oy2 = object_box
+    ax1, ay1, ax2, ay2 = area_box
 
     # Calculate the intersection coordinates
-    ix1 = max(hx1, px1)
-    iy1 = max(hy1, py1)
-    ix2 = min(hx2, px2)
-    iy2 = min(hy2, py2)
+    ix1 = max(ox1, ax1)
+    iy1 = max(oy1, ay1)
+    ix2 = min(ox2, ax2)
+    iy2 = min(oy2, ay2)
 
     # Calculate intersection area
     inter_width = max(0, ix2 - ix1)
@@ -32,14 +32,14 @@ def calculate_overlap(object_box, person_box):
     intersection_area = inter_width * inter_height
 
     # Calculate the area of the helmet bounding box
-    helmet_area = (hx2 - hx1) * (hy2 - hy1)
+    object_area = (ox2 - ox1) * (oy2 - oy1)
 
     # Avoid division by zero
-    if helmet_area == 0:
+    if object_area == 0:
         return 0
 
-    # Compute the overlap ratio (intersection / helmet area)
-    overlap_ratio = intersection_area / helmet_area
+    # Compute the overlap ratio (intersection / object area)
+    overlap_ratio = intersection_area / object_area
     return overlap_ratio
 
 # Perform person detection
@@ -66,13 +66,18 @@ helmet_indices = np.where(ppe_classes == 0)[0]
 helmet_bboxes = ppe_bboxes[helmet_indices]
 helmet_scores = ppe_scores[helmet_indices]
 
-# Filter to include only helmets (class ID = 1 in custom model)
+# Filter to include only vest (class ID = 1 in custom model)
 vest_indices = np.where(ppe_classes == 1)[0]
 vest_bboxes = ppe_bboxes[vest_indices]
 vest_scores = ppe_scores[vest_indices]
 
 # Threshold for overlap ratio to consider a helmet as "worn"
 overlap_threshold = 0.4  # Adjust based on your requirements
+
+# ROI
+ROI_box = np.array([291,331,2354,1353], dtype=int)
+ROI_threshold = 0.5
+ROI_count = 0
 
 # Check if persons are wearing helmets and vests
 for person_bbox, person_score in zip(person_bboxes, person_scores):
@@ -93,6 +98,12 @@ for person_bbox, person_score in zip(person_bboxes, person_scores):
             wearing_vest = True
             break
 
+    # ROI check
+    if not (wearing_helmet and wearing_vest):
+        overlap_ratio = calculate_overlap(person_bbox, ROI_box)
+        if overlap_ratio > ROI_threshold:
+            ROI_count += 1
+
     # Draw bounding box around the person
     color = (0, 255, 0) if (wearing_helmet and wearing_vest) else (0, 0, 255)  # Green if wearing helmet and vest, red otherwise
     (px1, py1, px2, py2) = person_bbox
@@ -107,9 +118,15 @@ for helmet_bbox in helmet_bboxes:
     cv2.putText(frame, "Helmet", (hx1, hy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 0, 0), 2)
 
 for vest_bbox in vest_bboxes:
-    (hx1, hy1, hx2, hy2) = vest_bbox
-    cv2.rectangle(frame, (hx1, hy1), (hx2, hy2), (255, 255, 0), 2)
-    cv2.putText(frame, "Helmet", (hx1, hy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 2)
+    (vx1, vy1, vx2, vy2) = vest_bbox
+    cv2.rectangle(frame, (vx1, vy1), (vx2, vy2), (255, 255, 0), 2)
+    cv2.putText(frame, "Helmet", (vx1, vy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 2)
+
+# Draw ROI
+ROIx1, ROIy1, ROIx2, ROIy2 = ROI_box
+cv2.rectangle(frame, (ROIx1,ROIy1), (ROIx2,ROIy2), (0, 255, 255), 2)
+cv2.putText(frame, "ROI", (ROIx1, ROIy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
+print("ROI count", ROI_count)
 
 # Display the image with detections
 framers = cv2.resize(frame,(1200,720))
