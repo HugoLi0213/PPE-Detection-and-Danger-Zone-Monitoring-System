@@ -1,135 +1,154 @@
+import os
+
 import cv2
-from ultralytics import YOLO
 import numpy as np
-
-# Paths to input image and pre-trained models
-image_path = "pic1.jpg"  # Change the image for detection
-person_model_path = "yolov8s.pt"  
-ppe_model_path = "ovu.pt"  # Replace with a model pre-trained for helmet detection
+from ultralytics import YOLO
 
 
-frame = cv2.imread(image_path)
+class PPEDetector:
+    def __init__(self):
+        # Get current working directory
+        self.cwd = os.getcwd()
+        
+        # Define paths relative to current directory
+        self.image_path = os.path.join(self.cwd, "pic3.jpg")
+        self.person_model_path = os.path.join(self.cwd, "yolov8s.pt")
+        self.ppe_model_path = os.path.join(self.cwd, "ovu.pt")
+        
+        # Verify file existence
+        self._verify_files()
+        
+        # Initialize models
+        self.person_model = YOLO(self.person_model_path)
+        self.ppe_model = YOLO(self.ppe_model_path)
+        
+        # Original thresholds
+        self.overlap_threshold = 0.4
+        self.roi_threshold = 0.5
+        
+    def _verify_files(self):
+        """Verify that required files exist"""
+        files_to_check = [
+            (self.image_path, "Image file"),
+            (self.person_model_path, "Person detection model"),
+            (self.ppe_model_path, "PPE detection model")
+        ]
+        
+        for file_path, file_desc in files_to_check:
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"{file_desc} not found at: {file_path}")
 
-# Initialize YOLO models
-person_model = YOLO(person_model_path)  # Person detection model
-ppe_model = YOLO(ppe_model_path)  # Custom helmet detection model
+    def calculate_overlap(self, object_box, area_box):
+        try:
+            ox1, oy1, ox2, oy2 = map(float, object_box)
+            ax1, ay1, ax2, ay2 = map(float, area_box)
+            
+            ix1 = max(ox1, ax1)
+            iy1 = max(oy1, ay1)
+            ix2 = min(ox2, ax2)
+            iy2 = min(oy2, ay2)
+            
+            inter_width = max(0, ix2 - ix1)
+            inter_height = max(0, iy2 - iy1)
+            intersection_area = inter_width * inter_height
+            
+            object_area = (ox2 - ox1) * (oy2 - oy1)
+            
+            if object_area == 0:
+                return 0
+                
+            return float(intersection_area / object_area)
+        except Exception as e:
+            print(f"Error in overlap calculation: {e}")
+            return 0
 
-# Function to calculate IoU based on the helmet bounding box
-def calculate_overlap(object_box, area_box):
-    # Unpack box coordinates
-    ox1, oy1, ox2, oy2 = object_box
-    ax1, ay1, ax2, ay2 = area_box
+    def process_frame(self):
+        # Read image
+        frame = cv2.imread(self.image_path)
+        if frame is None:
+            raise ValueError(f"Failed to load image from {self.image_path}")
 
-    # Calculate the intersection coordinates
-    ix1 = max(ox1, ax1)
-    iy1 = max(oy1, ay1)
-    ix2 = min(ox2, ax2)
-    iy2 = min(oy2, ay2)
+        # Person detection
+        person_results = self.person_model(frame, device="cpu")
+        person_result = person_results[0]
+        person_bboxes = np.array(person_result.boxes.xyxy.cpu(), dtype="int")
+        person_classes = np.array(person_result.boxes.cls.cpu(), dtype="int")
+        person_scores = np.array(person_result.boxes.conf.cpu(), dtype="float")
 
-    # Calculate intersection area
-    inter_width = max(0, ix2 - ix1)
-    inter_height = max(0, iy2 - iy1)
-    intersection_area = inter_width * inter_height
+        # PPE detection
+        ppe_results = self.ppe_model(frame, device="cpu", imgsz=640, conf=0.8, iou=0.4)
+        ppe_result = ppe_results[0]
+        ppe_bboxes = np.array(ppe_result.boxes.xyxy.cpu(), dtype="int")
+        ppe_classes = np.array(ppe_result.boxes.cls.cpu(), dtype="int")
+        ppe_scores = np.array(ppe_result.boxes.conf.cpu(), dtype="float")
 
-    # Calculate the area of the helmet bounding box
-    object_area = (ox2 - ox1) * (oy2 - oy1)
+        # Filter detections
+        person_indices = np.where(person_classes == 0)[0]
+        person_bboxes = person_bboxes[person_indices]
+        person_scores = person_scores[person_indices]
 
-    # Avoid division by zero
-    if object_area == 0:
-        return 0
+        helmet_indices = np.where(ppe_classes == 0)[0]
+        helmet_bboxes = ppe_bboxes[helmet_indices]
+        helmet_scores = ppe_scores[helmet_indices]
 
-    # Compute the overlap ratio (intersection / object area)
-    overlap_ratio = intersection_area / object_area
-    return overlap_ratio
+        vest_indices = np.where(ppe_classes == 1)[0]
+        vest_bboxes = ppe_bboxes[vest_indices]
+        vest_scores = ppe_scores[vest_indices]
 
-# Perform person detection
-person_results = person_model(frame, device="cpu") #change device to cuda if you need
-person_result = person_results[0]
-person_bboxes = np.array(person_result.boxes.xyxy.cpu(), dtype="int")
-person_classes = np.array(person_result.boxes.cls.cpu(), dtype="int")
-person_scores = np.array(person_result.boxes.conf.cpu(), dtype="float")
+        # ROI setup
+        ROI_box = np.array([291, 331, 2354, 1353], dtype=int)
+        ROI_count = 0
 
-# Filter to include only persons (class ID = 0)
-person_indices = np.where(person_classes == 0)[0]
-person_bboxes = person_bboxes[person_indices]
-person_scores = person_scores[person_indices]
+        # Process detections
+        for person_bbox, person_score in zip(person_bboxes, person_scores):
+            wearing_helmet = False
+            wearing_vest = False
 
-# Perform ppe detection
-ppe_results = ppe_model(frame, device="cpu", imgsz=640, conf=0.8, iou=0.4) #change device to cuda if you need
-ppe_result = ppe_results[0]
-ppe_bboxes = np.array(ppe_result.boxes.xyxy.cpu(), dtype="int")
-ppe_classes = np.array(ppe_result.boxes.cls.cpu(), dtype="int")
-ppe_scores = np.array(ppe_result.boxes.conf.cpu(), dtype="float")
+            # Check helmet
+            for helmet_bbox in helmet_bboxes:
+                overlap = self.calculate_overlap(helmet_bbox, person_bbox)
+                if overlap and overlap > self.overlap_threshold:
+                    wearing_helmet = True
+                    break
 
-# Filter to include only helmets (class ID = 0 in custom model)
-helmet_indices = np.where(ppe_classes == 0)[0]
-helmet_bboxes = ppe_bboxes[helmet_indices]
-helmet_scores = ppe_scores[helmet_indices]
+            # Check vest
+            for vest_bbox in vest_bboxes:
+                overlap = self.calculate_overlap(vest_bbox, person_bbox)
+                if overlap and overlap > self.overlap_threshold:
+                    wearing_vest = True
+                    break
 
-# Filter to include only vest (class ID = 1 in custom model)
-vest_indices = np.where(ppe_classes == 1)[0]
-vest_bboxes = ppe_bboxes[vest_indices]
-vest_scores = ppe_scores[vest_indices]
+            # ROI check
+            if not (wearing_helmet and wearing_vest):
+                overlap = self.calculate_overlap(person_bbox, ROI_box)
+                if overlap and overlap > self.roi_threshold:
+                    ROI_count += 1
 
-# Threshold for overlap ratio to consider a helmet as "worn"
-overlap_threshold = 0.4  # Adjust based on your requirements
+            # Draw bounding boxes
+            color = (0, 255, 0) if (wearing_helmet and wearing_vest) else (0, 0, 255)
+            px1, py1, px2, py2 = person_bbox
+            cv2.rectangle(frame, (px1, py1), (px2, py2), color, 2)
+            label = "PPE" if (wearing_helmet and wearing_vest) else "No PPE"
+            cv2.putText(frame, label, (px1, py1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, color, 2)
 
-# ROI
-ROI_box = np.array([291,331,2354,1353], dtype=int)
-ROI_threshold = 0.5
-ROI_count = 0
+        # Draw ROI
+        cv2.rectangle(frame, (ROI_box[0], ROI_box[1]), (ROI_box[2], ROI_box[3]), (0, 255, 255), 2)
+        cv2.putText(frame, "ROI", (ROI_box[0], ROI_box[1] - 10), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
 
-# Check if persons are wearing helmets and vests
-for person_bbox, person_score in zip(person_bboxes, person_scores):
-    wearing_helmet = False  # Assume no helmet initially
-    wearing_vest = False
+        print(f"ROI count: {ROI_count}")
+        
+        # Display results
+        frame_resized = cv2.resize(frame, (1200, 720))
+        cv2.imshow("PPE Detection", frame_resized)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
-    for helmet_bbox in helmet_bboxes:
-        overlap_ratio = calculate_overlap(helmet_bbox, person_bbox)
+def main():
+    try:
+        detector = PPEDetector()
+        detector.process_frame()
+    except Exception as e:
+        print(f"Error: {str(e)}")
 
-        # If overlap ratio exceeds the threshold, the person is wearing a helmet
-        if overlap_ratio > overlap_threshold:
-            wearing_helmet = True
-            break
-
-    for vest_bbox in vest_bboxes:
-        overlap_ratio = calculate_overlap(vest_bbox, person_bbox)
-        if overlap_ratio > overlap_threshold:
-            wearing_vest = True
-            break
-
-    # ROI check
-    if not (wearing_helmet and wearing_vest):
-        overlap_ratio = calculate_overlap(person_bbox, ROI_box)
-        if overlap_ratio > ROI_threshold:
-            ROI_count += 1
-
-    # Draw bounding box around the person
-    color = (0, 255, 0) if (wearing_helmet and wearing_vest) else (0, 0, 255)  # Green if wearing helmet and vest, red otherwise
-    (px1, py1, px2, py2) = person_bbox
-    cv2.rectangle(frame, (px1, py1), (px2, py2), color, 2)
-    label = "PPE" if wearing_helmet else "No PPE"
-    cv2.putText(frame, label, (px1, py1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, color, 2)
-
-# Draw bounding boxes for detected helmets (for reference)
-for helmet_bbox in helmet_bboxes:
-    (hx1, hy1, hx2, hy2) = helmet_bbox
-    cv2.rectangle(frame, (hx1, hy1), (hx2, hy2), (255, 0, 0), 2)  # Blue for helmets
-    cv2.putText(frame, "Helmet", (hx1, hy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 0, 0), 2)
-
-for vest_bbox in vest_bboxes:
-    (vx1, vy1, vx2, vy2) = vest_bbox
-    cv2.rectangle(frame, (vx1, vy1), (vx2, vy2), (255, 255, 0), 2)
-    cv2.putText(frame, "Helmet", (vx1, vy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 2)
-
-# Draw ROI
-ROIx1, ROIy1, ROIx2, ROIy2 = ROI_box
-cv2.rectangle(frame, (ROIx1,ROIy1), (ROIx2,ROIy2), (0, 255, 255), 2)
-cv2.putText(frame, "ROI", (ROIx1, ROIy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 2)
-print("ROI count", ROI_count)
-
-# Display the image with detections
-framers = cv2.resize(frame,(1200,720))
-cv2.imshow("Image", framers)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+if __name__ == "__main__":
+    main()
