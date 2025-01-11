@@ -127,9 +127,9 @@ class PPEChecker:
             raise
 
 if __name__ == "__main__":
-    image_path = "pic1.jpg"
-    person_model_path = "yolov8s.pt"
-    ppe_model_path = "ovu.pt"
+    image_path = "utils/pic1.jpg"  # Ensure this path is correct
+    person_model_path = "models/yolov8s.pt"  # Ensure this path is correct
+    ppe_model_path = "models/ovu.pt"  # Ensure this path is correct
 
     ppe_checker = PPEChecker(image_path, person_model_path, ppe_model_path)
     ppe_checker.load_image()
