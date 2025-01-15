@@ -1,5 +1,6 @@
 import cv2
 
+
 def mouse(event, x, y, flags, param): # click event to print coordination
     # left button: record coordinates
     if event == cv2.EVENT_LBUTTONDOWN:
@@ -22,7 +23,7 @@ def mouse(event, x, y, flags, param): # click event to print coordination
         coord = f.read().split()
         print(coord)
 
-cap = cv2.VideoCapture("video.mp4")
+cap = cv2.VideoCapture("BM02.mp4")
 ret, img = cap.read()
 img_oh = img.shape[0] # original height
 img_ow = img.shape[1] # original width

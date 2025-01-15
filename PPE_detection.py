@@ -7,7 +7,7 @@ import torch
 from ultralytics import YOLO
 
 # Paths to input image and pre-trained models
-image_path = os.path.join(os.path.dirname(__file__), 'video.mp4')
+image_path = os.path.join(os.path.dirname(__file__), 'BM02.mp4')
 models_dir = os.path.join(os.path.dirname(__file__), 'models')
 person_model_path = os.path.join(models_dir, 'yolov8s.pt')
 ppe_model_path = os.path.join(models_dir, 'ovu.pt')
