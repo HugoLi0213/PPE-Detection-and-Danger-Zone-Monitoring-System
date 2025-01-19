@@ -3,28 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
     <title>PPE and Danger Zone Monitoring</title>
 </head>
 <body>
-    <div class="navbar">
-        <div class="nav-item">Safety</div>
-        <div class="nav-item">Dashboard</div>
-        <div class="nav-item">🔔</div>
+    <!-- Navigation Bar -->
+    <header class="navbar">
+        <div class="logo">SafetyMonitor</div>
+        <nav>
+            <a href="index.html" class="nav-item">PPE Detection</a>
+            <a href="index.html" class="nav-item">Danger Zones</a>
+            <a href="stats.html" class="nav-item">Statistics</a>
+            <a href="manage.html" class="nav-item">Manage</a>
+            <div class="nav-item notification" title="Notifications">🔔</div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Welcome to the PPE and Danger Zone Monitoring Dashboard</h1>
+        <p>Real-time monitoring to ensure worker safety and prevent accidents.</p>
+    </section>
+
+    <!-- Content Section -->
+    <main class="content">
+        <!-- PPE Detection Section -->
+        <section id="ppe-section" class="card">
+            <h2>PPE Detection</h2>
+            <img src="video_feed_ppe.jpg" alt="Live feed for PPE detection" class="video-feed">
+            <p>Ensuring workers are properly equipped with PPE at all times.</p>
+        </section>
+
+        <!-- Danger Zone Section -->
+        <section id="danger-zone-section" class="card">
+            <h2>Danger Zone Monitoring</h2>
+            <img src="video_feed_danger_zone.jpg" alt="Live feed for danger zone monitoring" class="video-feed">
+            <p>Monitoring activity in high-risk areas to minimize accidents.</p>
+        </section>
+    </main>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button onclick="navigateTo('manage.html')">Manage Danger Zones</button>
+        <button onclick="navigateTo('stats.html')">View Statistics</button>
     </div>
-    <div class="container">
-        <div class="video-section">
-            <h2>CCTV_PPE_detection</h2>
-            <img src="video_feed.jpg" alt="PPE Detection" class="video-feed">
-        </div>
-        <div class="video-section">
-            <h2>Danger Zones</h2>
-            <img src="video_feed.jpg" alt="Danger Zone Monitoring" class="video-feed">
-        </div>
-    </div>
-    <div class="buttons">
-        <button>Manage Danger Zone</button>
-        <button>Stats</button>
-    </div>
+
+    <footer>
+        <p>© 2025 SafetyMonitor | All Rights Reserved</p>
+    </footer>
+
+    <script>
+        function navigateTo(page) {
+            window.location.href = page;
+        }
+    </script>
 </body>
 </html>
