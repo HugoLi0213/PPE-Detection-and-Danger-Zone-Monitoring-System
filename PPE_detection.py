@@ -8,13 +8,35 @@ from ultralytics import YOLO
 
 app = Flask(__name__)
 
-# Initialize YOLO models
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# Paths to input image and pre-trained models
+image_path = os.path.join(os.path.dirname(__file__), 'BM02.mp4')
 models_dir = os.path.join(os.path.dirname(__file__), 'models')
 person_model_path = os.path.join(models_dir, 'yolov8s.pt')
 ppe_model_path = os.path.join(models_dir, 'ovu.pt')
 
-# Load models
+# Check if the model files exist
+if not os.path.exists(person_model_path):
+    raise FileNotFoundError(f"The person model file '{person_model_path}' does not exist.")
+if not os.path.exists(ppe_model_path):
+    raise FileNotFoundError(f"The PPE model file '{ppe_model_path}' does not exist.")
+
+# Construct the path to the ROI_coord.txt file in the utils directory
+utils_dir = os.path.dirname(__file__)
+roi_coord_path = os.path.join(utils_dir, 'ROI_coord.txt')
+
+# Check if the file exists
+if not os.path.exists(roi_coord_path):
+    raise FileNotFoundError(f"The file '{roi_coord_path}' does not exist. Please check the path.")
+
+# Open the file
+with open(roi_coord_path, "r") as f:
+    coord = f.read().split()
+
+# Convert coordinates to integers
+ROI_box = np.array([coord[0], coord[1], coord[2], coord[3]], dtype=int)
+
+# Initialize YOLO models
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 person_model = YOLO(person_model_path).to(device)
 ppe_model = YOLO(ppe_model_path).to(device)
 
@@ -39,14 +61,6 @@ def process_frame(frame):
     ROI_threshold = 0.5
     ROI_count_current = 0
 
-    # Load ROI coordinates
-    utils_dir = os.path.dirname(__file__)
-    roi_coord_path = os.path.join(utils_dir, 'ROI_coord.txt')
-    with open(roi_coord_path, "r") as f:
-        coord = f.read().split()
-    ROI_box = np.array([coord[0], coord[1], coord[2], coord[3]], dtype=int)
-
-    # Process with person model
     person_results = person_model(frame, device=device)
     person_result = person_results[0]
     person_bboxes = np.array(person_result.boxes.xyxy.cpu(), dtype="int")
@@ -56,43 +70,67 @@ def process_frame(frame):
     person_bboxes = person_bboxes[person_indices]
     person_scores = person_scores[person_indices]
 
-    # Process with PPE model
     ppe_results = ppe_model(frame, device=device, imgsz=640, conf=0.8, iou=0.4)
     ppe_result = ppe_results[0]
     ppe_bboxes = np.array(ppe_result.boxes.xyxy.cpu(), dtype="int")
     ppe_classes = np.array(ppe_result.boxes.cls.cpu(), dtype="int")
     ppe_scores = np.array(ppe_result.boxes.conf.cpu(), dtype="float")
+    helmet_indices = np.where(ppe_classes == 0)[0]
+    helmet_bboxes = ppe_bboxes[helmet_indices]
+    helmet_scores = ppe_scores[helmet_indices]
+    vest_indices = np.where(ppe_classes == 1)[0]
+    vest_bboxes = ppe_bboxes[vest_indices]
+    vest_scores = ppe_scores[vest_indices]
 
-    # Draw detections and process results
     for person_bbox, person_score in zip(person_bboxes, person_scores):
         wearing_helmet = False
         wearing_vest = False
 
-        # Check for PPE
-        for ppe_bbox, ppe_class in zip(ppe_bboxes, ppe_classes):
-            overlap_ratio = calculate_overlap(ppe_bbox, person_bbox)
+        for helmet_bbox in helmet_bboxes:
+            overlap_ratio = calculate_overlap(helmet_bbox, person_bbox)
             if overlap_ratio > overlap_threshold:
-                if ppe_class == 0:
-                    wearing_helmet = True
-                elif ppe_class == 1:
-                    wearing_vest = True
+                wearing_helmet = True
+                break
 
-        # Draw person detection
+        for vest_bbox in vest_bboxes:
+            overlap_ratio = calculate_overlap(vest_bbox, person_bbox)
+            if overlap_ratio > overlap_threshold:
+                wearing_vest = True
+                break
+
+        if not (wearing_helmet and wearing_vest):
+            overlap_ratio = calculate_overlap(person_bbox, ROI_box)
+            if overlap_ratio > ROI_threshold:
+                ROI_count_current += 1
+
         color = (0, 255, 0) if (wearing_helmet and wearing_vest) else (0, 0, 255)
         (px1, py1, px2, py2) = person_bbox
         cv2.rectangle(frame, (px1, py1), (px2, py2), color, 2)
-        label = "PPE" if (wearing_helmet and wearing_vest) else "No PPE"
+        label = "PPE" if wearing_helmet else "No PPE"
         cv2.putText(frame, label, (px1, py1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, color, 2)
 
-    return frame
+    for helmet_bbox in helmet_bboxes:
+        (hx1, hy1, hx2, hy2) = helmet_bbox
+        cv2.rectangle(frame, (hx1, hy1), (hx2, hy2), (255, 0, 0), 2)
+        cv2.putText(frame, "Helmet", (hx1, hy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 0, 0), 2)
+
+    for vest_bbox in vest_bboxes:
+        (vx1, vy1, vx2, vy2) = vest_bbox
+        cv2.rectangle(frame, (vx1, vy1), (vx2, vy2), (255, 255, 0), 2)
+        cv2.putText(frame, "Vest", (vx1, vy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 0), 2)
+
+    ROIx1, ROIy1, ROIx2, ROIy2 = ROI_box
+    ROI_color = (255, 255, 255) if (ROI_count_current == 0) else (255, 0, 255)
+    cv2.rectangle(frame, (ROIx1, ROIy1), (ROIx2, ROIy2), ROI_color, 2)
+    cv2.putText(frame, "ROI", (ROIx1, ROIy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, ROI_color, 2)
+    return frame, ROI_count_current
 
 def generate_frames():
-    # Use your video file path
-    video_path = os.path.join(os.path.dirname(__file__), 'BM02.mp4')
-    cap = cv2.VideoCapture(video_path)
-    
+    cap = cv2.VideoCapture(image_path)
     if not cap.isOpened():
         raise RuntimeError('Could not start camera.')
+
+    ROI_count_last = 0
 
     while True:
         success, frame = cap.read()
@@ -100,11 +138,17 @@ def generate_frames():
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Loop video
             continue
 
-        # Process frame
-        processed_frame = process_frame(frame)
+        processed_frame, ROI_count_current = process_frame(frame)
         
-        # Convert to jpg
-        ret, buffer = cv2.imencode('.jpg', processed_frame)
+        if ROI_count_current > ROI_count_last:
+            print("Send MQTT Message")
+        ROI_count_last = ROI_count_current
+
+        # Resize frame for display
+        display = cv2.resize(processed_frame, (1200, 720))
+        
+        # Convert to jpg for streaming
+        ret, buffer = cv2.imencode('.jpg', display)
         frame_bytes = buffer.tobytes()
         
         yield (b'--frame\r\n'
