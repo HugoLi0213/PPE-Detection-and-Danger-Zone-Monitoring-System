@@ -6,7 +6,7 @@ import torch
 from flask import Flask, Response, render_template
 from ultralytics import YOLO
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 # Paths to input image and pre-trained models
 image_path = os.path.join(os.path.dirname(__file__), 'BM02.mp4')
@@ -160,8 +160,15 @@ def index():
 
 @app.route('/video_feed')
 def video_feed():
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/manage')
+def manage():
+    return render_template('manage.html')
+
+@app.route('/stats')
+def stats():
+    return render_template('stats.html')
 
 if __name__ == '__main__':
     app.run(debug=True, threaded=True)

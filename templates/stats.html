@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <title>PPE Monitoring Statistics</title>
 </head>
 <body>
@@ -11,10 +11,10 @@
     <header class="navbar">
         <div class="logo">SafetyMonitor</div>
         <nav>
-            <a href="index.html" class="nav-item">PPE Detection</a>
-            <a href="index.html" class="nav-item">Danger Zones</a>
-            <a href="stats.html" class="nav-item">Statistics</a>
-            <a href="manage.html" class="nav-item">Manage</a>
+            <a href="{{ url_for('index') }}" class="nav-item">PPE Detection</a>
+            <a href="{{ url_for('index') }}" class="nav-item">Danger Zones</a>
+            <a href="{{ url_for('stats') }}" class="nav-item">Statistics</a>
+            <a href="{{ url_for('manage') }}" class="nav-item">Manage</a>
             <div class="nav-item notification" title="Notifications">🔔</div>
         </nav>
     </header>

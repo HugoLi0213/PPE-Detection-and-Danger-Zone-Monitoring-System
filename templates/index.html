@@ -3,39 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <title>PPE and Danger Zone Monitoring</title>
-    <style>
-        .video-controls {
-            margin: 20px 0;
-        }
-        .video-controls button {
-            padding: 10px 20px;
-            margin: 0 10px;
-            cursor: pointer;
-        }
-        .hidden {
-            display: none;
-        }
-    </style>
 </head>
 <body>
     <!-- Navigation Bar -->
     <header class="navbar">
         <div class="logo">SafetyMonitor</div>
         <nav>
-            <a href="index.html" class="nav-item">PPE Detection</a>
-            <a href="index.html" class="nav-item">Danger Zones</a>
-            <a href="stats.html" class="nav-item">Statistics</a>
-            <a href="manage.html" class="nav-item">Manage</a>
+            <a href="{{ url_for('index') }}" class="nav-item">PPE Detection</a>
+            <a href="{{ url_for('index') }}" class="nav-item">Danger Zones</a>
+            <a href="{{ url_for('stats') }}" class="nav-item">Statistics</a>
+            <a href="{{ url_for('manage') }}" class="nav-item">Manage</a>
             <div class="nav-item notification" title="Notifications">🔔</div>
         </nav>
     </header>
 
     <!-- Hero Section -->
-    <section class="hero">
-        <h1>Welcome to the PPE and Danger Zone Monitoring Dashboard</h1>
-        <p>Real-time monitoring to ensure worker safety and prevent accidents.</p>
+    <section class="hero-section">
+        <div class="hero-content">
+            <h1>Welcome to the PPE and Danger Zone Monitoring Dashboard</h1>
+            <p>Real-time monitoring to ensure worker safety and prevent accidents.</p>
+        </div>
     </section>
 
     <!-- Content Section -->
@@ -60,8 +49,8 @@
 
     <!-- Action Buttons -->
     <div class="action-buttons">
-        <button onclick="navigateTo('manage.html')">Manage Danger Zones</button>
-        <button onclick="navigateTo('stats.html')">View Statistics</button>
+        <button onclick="window.location.href='{{ url_for('manage') }}'">Manage Danger Zones</button>
+        <button onclick="window.location.href='{{ url_for('stats') }}'">View Statistics</button>
     </div>
 
     <footer>
@@ -69,10 +58,6 @@
     </footer>
 
     <script>
-        function navigateTo(page) {
-            window.location.href = page;
-        }
-
         function startStream() {
             const videoFeed = document.getElementById('videoFeed');
             videoFeed.src = "{{ url_for('video_feed') }}";
