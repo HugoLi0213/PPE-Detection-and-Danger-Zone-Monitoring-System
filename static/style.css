@@ -1,0 +1,234 @@
+/* General Styles */
+body {
+    margin: 0;
+    font-family: 'Arial', sans-serif;
+    background-color: #f9f9f9;
+    color: #333; 
+    line-height: 1.6;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Navbar */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #2a2a72; 
+    color: #fff; 
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.navbar .logo {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ffffff; 
+}
+
+.navbar nav .nav-item {
+    font-size: 16px;
+    cursor: pointer;
+    padding: 5px 10px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    color: #e0e0ff; 
+}
+
+.navbar nav .nav-item:hover {
+    background-color: #4141a5;
+    border-radius: 5px;
+    color: #ffffff;
+}
+
+.navbar nav .notification {
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+}
+
+/* Hero Section Styles - Updated for smaller welcome text */
+.hero-section {
+    background: linear-gradient(135deg, #2a2a72 0%, #009ffd 100%);
+    padding: 30px 20px;
+    text-align: center;
+    color: white;
+    margin-bottom: 20px; /* Reduced margin */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.hero-content h1 {
+    font-size: 1.8em; /* Reduced from 2.5em */
+    margin-bottom: 10px; /* Reduced margin */
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.hero-content p {
+    font-size: 1em; /* Reduced from 1.2em */
+    line-height: 1.6;
+    margin-bottom: 15px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Content Section Styles - Updated for larger monitoring sections */
+.content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+}
+
+/* Card Styles - Updated for larger sections */
+.card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    margin-bottom: 30px;
+    flex: 1 1 45%;
+    min-width: 300px;
+}
+
+#ppe-section, #danger-zone-section {
+	min-height: 400px; /* Increased height */
+}
+
+.card h2 {
+    color: #2a2a72;
+    margin-bottom: 20px;
+    font-size: 2em; /* Increased from 1.8em */
+    text-align: center;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #2a2a72;
+}
+
+.card p {
+    color: #666;
+    line-height: 1.6;
+}
+
+/* Video Controls - Updated for better spacing */
+.video-controls {
+    margin: 30px 0;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.video-controls button {
+    background-color: #2a2a72;
+    color: white;
+    border: none;
+    padding: 15px 30px; /* Larger buttons */
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1em;
+    transition: all 0.3s ease;
+}
+
+/* Video Controls Hover */
+    background-color: #1a1a62;
+    transform: translateY(-2px);
+}
+
+/* Video Feed - Updated for better visibility */
+.video-feed {
+    width: 100%;
+    max-width: 100%;
+    margin: 20px auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 10px;
+    background-color: #2a2a72;
+    color: #e0e0ff;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .card {
+        max-width: 90%;
+    }
+
+}
+
+/* Image Container */
+.image-container {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+
+#reference-image {
+    width: 100%;
+    display: block;
+}
+
+#zones-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.danger-zone {
+    position: absolute;
+    border: 2px solid red;
+    background-color: rgba(255, 0, 0, 0.3);
+    pointer-events: none;
+}
+
+.danger-zone span {
+    position: absolute;
+    top: -20px;
+    left: 5px;
+    color: red;
+    font-weight: bold;
+    background-color: white;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+
+/* Form Styles */
+#zone-form {
+    margin-top: 20px;
+    text-align: left;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
