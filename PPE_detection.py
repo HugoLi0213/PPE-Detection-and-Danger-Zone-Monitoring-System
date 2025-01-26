@@ -1,10 +1,12 @@
-import multiprocessing as mp
 import os
 
 import cv2
 import numpy as np
 import torch
+from flask import Flask, Response, jsonify, render_template, request
 from ultralytics import YOLO
+
+app = Flask(__name__, static_folder='static')
 
 # Paths to input image and pre-trained models
 image_path = os.path.join(os.path.dirname(__file__), 'BM02.mp4')
@@ -18,19 +20,18 @@ if not os.path.exists(person_model_path):
 if not os.path.exists(ppe_model_path):
     raise FileNotFoundError(f"The PPE model file '{ppe_model_path}' does not exist.")
 
-# Construct the path to the ROI_coord.txt file in the utils directory
+# Construct the path to the ROI_coord.txt file
 utils_dir = os.path.dirname(__file__)
 roi_coord_path = os.path.join(utils_dir, 'ROI_coord.txt')
 
-# Check if the file exists
+# Create ROI_coord.txt if it doesn't exist
 if not os.path.exists(roi_coord_path):
-    raise FileNotFoundError(f"The file '{roi_coord_path}' does not exist. Please check the path.")
+    with open(roi_coord_path, "w") as f:
+        f.write("0 0 640 480")  # Default coordinates
 
-# Open the file
+# Load initial ROI coordinates
 with open(roi_coord_path, "r") as f:
     coord = f.read().split()
-
-# Convert coordinates to integers
 ROI_box = np.array([coord[0], coord[1], coord[2], coord[3]], dtype=int)
 
 # Initialize YOLO models
@@ -58,6 +59,14 @@ def process_frame(frame):
     overlap_threshold = 0.4
     ROI_threshold = 0.5
     ROI_count_current = 0
+
+    # Reload ROI coordinates
+    global ROI_box
+    with open(roi_coord_path, "r") as f:
+        coord = f.read().split()
+        if len(coord) >= 4:
+            ROI_box = np.array([int(coord[0]), int(coord[1]), 
+                               int(coord[2]), int(coord[3])], dtype=int)
 
     person_results = person_model(frame, device=device)
     person_result = person_results[0]
@@ -123,32 +132,94 @@ def process_frame(frame):
     cv2.putText(frame, "ROI", (ROIx1, ROIy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, ROI_color, 2)
     return frame, ROI_count_current
 
-def main():
+def generate_frames():
     cap = cv2.VideoCapture(image_path)
     if not cap.isOpened():
-        raise IOError(f"Cannot open video file '{image_path}'")
+        raise RuntimeError('Could not start camera.')
 
     ROI_count_last = 0
 
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Failed to read frame from video. Exiting...")
-            break
+        success, frame = cap.read()
+        if not success:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Loop video
+            continue
 
-        frame, ROI_count_current = process_frame(frame)
-
+        processed_frame, ROI_count_current = process_frame(frame)
+        
         if ROI_count_current > ROI_count_last:
             print("Send MQTT Message")
         ROI_count_last = ROI_count_current
 
-        display = cv2.resize(frame, (1200, 720))
-        cv2.imshow("frame", display)
-        if cv2.waitKey(100) & 0xFF == ord("q"):
-            break
+        # Resize frame for display
+        display = cv2.resize(processed_frame, (1200, 720))
+        
+        # Convert to jpg for streaming
+        ret, buffer = cv2.imencode('.jpg', display)
+        frame_bytes = buffer.tobytes()
+        
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-    cap.release()
-    cv2.destroyAllWindows()
+# Routes
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-if __name__ == "__main__":
-    main()
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/manage')
+def manage():
+    cap = cv2.VideoCapture(image_path)
+    success, frame = cap.read()
+    if success:
+        img_oh = frame.shape[0]  # original height
+        img_ow = frame.shape[1]  # original width
+        cap.release()
+        return render_template('manage.html', img_ow=img_ow, img_oh=img_oh)
+    return "Error loading video", 500
+
+@app.route('/get_initial_frame')
+def get_initial_frame():
+    cap = cv2.VideoCapture(image_path)
+    success, frame = cap.read()
+    if success:
+        frame = cv2.resize(frame, (1200, 720))
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
+        cap.release()
+        return Response(frame_bytes, mimetype='image/jpeg')
+    return "Error loading frame", 500
+
+@app.route('/get_coordinates')
+def get_coordinates():
+    try:
+        with open(roi_coord_path, "r") as f:
+            coordinates = f.read().split()
+            return jsonify({"coordinates": coordinates})
+    except:
+        return jsonify({"coordinates": []})
+
+@app.route('/add_coordinate', methods=['POST'])
+def add_coordinate():
+    data = request.json
+    x, y = data['x'], data['y']
+    with open(roi_coord_path, "a") as f:
+        f.write(f"{x} {y} ")
+    return jsonify({"status": "success"})
+
+@app.route('/clear_coordinates', methods=['POST'])
+def clear_coordinates():
+    
+    with open(roi_coord_path, "w") as f:
+        f.write("")
+    return jsonify({"status": "success"})
+
+@app.route('/stats')
+def stats():
+    return render_template('stats.html')
+
+if __name__ == '__main__':
+    app.run(debug=True, threaded=True)
