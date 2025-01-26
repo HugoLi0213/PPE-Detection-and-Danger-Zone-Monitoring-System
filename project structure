@@ -1,0 +1,16 @@
+PPE-DETECTION-AND-DANGER-ZONE-MONITORING
+│
+├── .idea
+│
+├── static
+│   └── style.css
+│
+├── templates
+│   ├── index.html
+│   ├── manage.html
+│   ├── stats.html
+│
+├── PPE_detection.py #main py
+├── ClickEvent.py
+├── ROI_coord.txt
+├── test.py
