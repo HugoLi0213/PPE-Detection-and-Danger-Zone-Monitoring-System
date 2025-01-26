@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -149,3 +150,156 @@
     </script>
 </body>
 </html>
+=======
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>PPE Monitoring Statistics</title>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <header class="navbar">
+        <div class="logo">SafetyMonitor</div>
+        <nav>
+            <a href="{{ url_for('index') }}" class="nav-item">PPE Detection</a>
+            <a href="{{ url_for('index') }}" class="nav-item">Danger Zones</a>
+            <a href="{{ url_for('stats') }}" class="nav-item">Statistics</a>
+            <a href="{{ url_for('manage') }}" class="nav-item">Manage</a>
+            <div class="nav-item notification" title="Notifications">🔔</div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Statistics Dashboard</h1>
+        <p>Comprehensive analytics to enhance worker safety and ensure compliance.</p>
+    </section>
+
+    <!-- Main Content -->
+    <main class="content">
+        <!-- PPE Stats Section -->
+        <section id="ppe-stats-section" class="card">
+            <h2>PPE Compliance Statistics</h2>
+            <canvas id="ppe-chart" class="chart"></canvas>
+            <p>Overview of PPE compliance rates among workers.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Total Workers</th>
+                        <th>Compliant</th>
+                        <th>Non-Compliant</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2025-01-01</td>
+                        <td>50</td>
+                        <td>48</td>
+                        <td>2</td>
+                    </tr>
+                    <tr>
+                        <td>2025-01-02</td>
+                        <td>52</td>
+                        <td>49</td>
+                        <td>3</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Danger Zone Stats Section -->
+        <section id="danger-zone-stats-section" class="card">
+            <h2>Danger Zone Incident Statistics</h2>
+            <canvas id="danger-zone-chart" class="chart"></canvas>
+            <p>Analysis of activity and incidents in high-risk areas.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Total Entries</th>
+                        <th>Warnings Issued</th>
+                        <th>Incidents</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2025-01-01</td>
+                        <td>30</td>
+                        <td>5</td>
+                        <td>0</td>
+                    </tr>
+                    <tr>
+                        <td>2025-01-02</td>
+                        <td>25</td>
+                        <td>4</td>
+                        <td>1</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>© 2025 SafetyMonitor | All Rights Reserved</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Example Chart.js Configuration for PPE Compliance
+        const ppeCtx = document.getElementById('ppe-chart').getContext('2d');
+        const ppeChart = new Chart(ppeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Compliant', 'Non-Compliant'],
+                datasets: [{
+                    data: [95, 5],
+                    backgroundColor: ['#4caf50', '#f44336'],
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+
+        // Example Chart.js Configuration for Danger Zone Stats
+        const dangerZoneCtx = document.getElementById('danger-zone-chart').getContext('2d');
+        const dangerZoneChart = new Chart(dangerZoneCtx, {
+            type: 'bar',
+            data: {
+                labels: ['2025-01-01', '2025-01-02'],
+                datasets: [{
+                    label: 'Warnings Issued',
+                    data: [5, 4],
+                    backgroundColor: '#ff9800',
+                }, {
+                    label: 'Incidents',
+                    data: [0, 1],
+                    backgroundColor: '#f44336',
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        stacked: true,
+                    },
+                    y: {
+                        stacked: true,
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+>>>>>>> 278c7d55689dea8c54d1f4411f2f19a0b1f45771

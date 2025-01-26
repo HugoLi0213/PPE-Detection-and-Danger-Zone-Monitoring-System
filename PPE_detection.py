@@ -3,7 +3,11 @@ import os
 import cv2
 import numpy as np
 import torch
+<<<<<<< HEAD
 from flask import Flask, Response, jsonify, render_template, request
+=======
+from flask import Flask, Response, render_template
+>>>>>>> 278c7d55689dea8c54d1f4411f2f19a0b1f45771
 from ultralytics import YOLO
 
 app = Flask(__name__, static_folder='static')
@@ -20,6 +24,7 @@ if not os.path.exists(person_model_path):
 if not os.path.exists(ppe_model_path):
     raise FileNotFoundError(f"The PPE model file '{ppe_model_path}' does not exist.")
 
+<<<<<<< HEAD
 # Construct the path to the ROI_coord.txt file
 utils_dir = os.path.dirname(__file__)
 roi_coord_path = os.path.join(utils_dir, 'ROI_coord.txt')
@@ -32,12 +37,31 @@ if not os.path.exists(roi_coord_path):
 # Load initial ROI coordinates
 with open(roi_coord_path, "r") as f:
     coord = f.read().split()
+=======
+# Construct the path to the ROI_coord.txt file in the utils directory
+utils_dir = os.path.dirname(__file__)
+roi_coord_path = os.path.join(utils_dir, 'ROI_coord.txt')
+
+# Check if the file exists
+if not os.path.exists(roi_coord_path):
+    raise FileNotFoundError(f"The file '{roi_coord_path}' does not exist. Please check the path.")
+
+# Open the file
+with open(roi_coord_path, "r") as f:
+    coord = f.read().split()
+
+# Convert coordinates to integers
+>>>>>>> 278c7d55689dea8c54d1f4411f2f19a0b1f45771
 ROI_box = np.array([coord[0], coord[1], coord[2], coord[3]], dtype=int)
 
 # Initialize YOLO models
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 person_model = YOLO(person_model_path).to(device)
 ppe_model = YOLO(ppe_model_path).to(device)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 278c7d55689dea8c54d1f4411f2f19a0b1f45771
 def calculate_overlap(object_box, area_box):
     ox1, oy1, ox2, oy2 = object_box
     ax1, ay1, ax2, ay2 = area_box
@@ -59,6 +83,7 @@ def process_frame(frame):
     ROI_threshold = 0.5
     ROI_count_current = 0
 
+<<<<<<< HEAD
     # Reload ROI coordinates
     global ROI_box
     with open(roi_coord_path, "r") as f:
@@ -67,6 +92,8 @@ def process_frame(frame):
             ROI_box = np.array([int(coord[0]), int(coord[1]), 
                                int(coord[2]), int(coord[3])], dtype=int)
 
+=======
+>>>>>>> 278c7d55689dea8c54d1f4411f2f19a0b1f45771
     person_results = person_model(frame, device=device)
     person_result = person_results[0]
     person_bboxes = np.array(person_result.boxes.xyxy.cpu(), dtype="int")
@@ -130,6 +157,10 @@ def process_frame(frame):
     cv2.rectangle(frame, (ROIx1, ROIy1), (ROIx2, ROIy2), ROI_color, 2)
     cv2.putText(frame, "ROI", (ROIx1, ROIy1 - 10), cv2.FONT_HERSHEY_PLAIN, 1, ROI_color, 2)
     return frame, ROI_count_current
+<<<<<<< HEAD
+=======
+
+>>>>>>> 278c7d55689dea8c54d1f4411f2f19a0b1f45771
 def generate_frames():
     cap = cv2.VideoCapture(image_path)
     if not cap.isOpened():
@@ -159,7 +190,10 @@ def generate_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
+<<<<<<< HEAD
 # Routes
+=======
+>>>>>>> 278c7d55689dea8c54d1f4411f2f19a0b1f45771
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -170,6 +204,7 @@ def video_feed():
 
 @app.route('/manage')
 def manage():
+<<<<<<< HEAD
     cap = cv2.VideoCapture(image_path)
     success, frame = cap.read()
     if success:
@@ -214,10 +249,17 @@ def clear_coordinates():
     with open(roi_coord_path, "w") as f:
         f.write("")
     return jsonify({"status": "success"})
+=======
+    return render_template('manage.html')
+>>>>>>> 278c7d55689dea8c54d1f4411f2f19a0b1f45771
 
 @app.route('/stats')
 def stats():
     return render_template('stats.html')
 
 if __name__ == '__main__':
+<<<<<<< HEAD
     app.run(debug=True, threaded=True)
+=======
+    app.run(debug=True, threaded=True)
+>>>>>>> 278c7d55689dea8c54d1f4411f2f19a0b1f45771
