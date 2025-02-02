@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <title>PPE and Danger Zone Monitoring</title>
 </head>
 <body>
@@ -11,18 +11,20 @@
     <header class="navbar">
         <div class="logo">SafetyMonitor</div>
         <nav>
-            <a href="index.html" class="nav-item">PPE Detection</a>
-            <a href="index.html" class="nav-item">Danger Zones</a>
-            <a href="stats.html" class="nav-item">Statistics</a>
-            <a href="manage.html" class="nav-item">Manage</a>
+            <a href="{{ url_for('index') }}" class="nav-item">PPE Detection</a>
+            <a href="{{ url_for('index') }}" class="nav-item">Danger Zones</a>
+            <a href="{{ url_for('stats') }}" class="nav-item">Statistics</a>
+            <a href="{{ url_for('manage') }}" class="nav-item">Manage</a>
             <div class="nav-item notification" title="Notifications">🔔</div>
         </nav>
     </header>
 
     <!-- Hero Section -->
-    <section class="hero">
-        <h1>Welcome to the PPE and Danger Zone Monitoring Dashboard</h1>
-        <p>Real-time monitoring to ensure worker safety and prevent accidents.</p>
+    <section class="hero-section">
+        <div class="hero-content">
+            <h1>Welcome to the PPE and Danger Zone Monitoring Dashboard</h1>
+            <p>Real-time monitoring to ensure worker safety and prevent accidents.</p>
+        </div>
     </section>
 
     <!-- Content Section -->
@@ -30,31 +32,64 @@
         <!-- PPE Detection Section -->
         <section id="ppe-section" class="card">
             <h2>PPE Detection</h2>
-            <img src="video_feed_ppe.jpg" alt="Live feed for PPE detection" class="video-feed">
+            <div class="video-controls">
+                <button onclick="startStream()">Start Stream</button>
+                <button onclick="stopStream()">Stop Stream</button>
+            </div>
+            <img id="videoFeed" src="" alt="Live PPE feed" class="video-feed hidden">
             <p>Ensuring workers are properly equipped with PPE at all times.</p>
         </section>
-
+        
         <!-- Danger Zone Section -->
         <section id="danger-zone-section" class="card">
             <h2>Danger Zone Monitoring</h2>
-            <img src="video_feed_danger_zone.jpg" alt="Live feed for danger zone monitoring" class="video-feed">
-            <p>Monitoring activity in high-risk areas to minimize accidents.</p>
+            <div class="video-controls">
+                <button onclick="startDangerZoneStream()">Start Danger Zone Stream</button>
+                <button onclick="stopDangerZoneStream()">Stop Danger Zone Stream</button>
+            </div>
+            <img id="dangerZoneFeed" src="" alt="Live Danger Zone feed" class="video-feed hidden">
+            <p>Proactively monitor activities in hazardous areas.</p>
         </section>
     </main>
 
     <!-- Action Buttons -->
     <div class="action-buttons">
-        <button onclick="navigateTo('manage.html')">Manage Danger Zones</button>
-        <button onclick="navigateTo('stats.html')">View Statistics</button>
+        <form action="{{ url_for('manage') }}" method="get" style="display: inline;">
+            <button type="submit">Manage Danger Zones</button>
+        </form>
+        <form action="{{ url_for('stats') }}" method="get" style="display: inline;">
+            <button type="submit">View Statistics</button>
+        </form>
     </div>
-
+    
     <footer>
         <p>© 2025 SafetyMonitor | All Rights Reserved</p>
     </footer>
 
     <script>
-        function navigateTo(page) {
-            window.location.href = page;
+        function startStream() {
+            const videoFeed = document.getElementById('videoFeed');
+            videoFeed.src = "{{ url_for('video_feed') }}";
+            videoFeed.classList.remove('hidden');
+        }
+
+        function stopStream() {
+            const videoFeed = document.getElementById('videoFeed');
+            videoFeed.src = "";
+            videoFeed.classList.add('hidden');
+        }
+
+        // Danger Zone Stream Controls
+        function startDangerZoneStream() {
+            const dangerZoneFeed = document.getElementById('dangerZoneFeed');
+            dangerZoneFeed.src = "{{ url_for('danger_zone_feed') }}";
+            dangerZoneFeed.classList.remove('hidden');
+        }
+
+        function stopDangerZoneStream() {
+            const dangerZoneFeed = document.getElementById('dangerZoneFeed');
+            dangerZoneFeed.src = "";
+            dangerZoneFeed.classList.add('hidden');
         }
     </script>
 </body>
