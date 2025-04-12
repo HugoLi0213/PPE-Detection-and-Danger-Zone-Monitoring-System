@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROI Coordinate Setup</title>
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #videoFrame {
+            border: 2px solid #333;
+            cursor: crosshair;
+        }
+        .info-panel {
+            background: #f0f0f0;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        /* New styles for the back button */
+        .back-button {
+            padding: 10px 20px;
+            background: #dc3545;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .back-button:hover {
+            background: #c82333;
+        }
+        /* Header container for title and back button */
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-container">
+            <h1>ROI Coordinate Setup</h1>
+            <a href="/" class="back-button">Back to Home</a>
+        </div>
+        
+        <div class="info-panel">
+            <h3>Mouse Controls:</h3>
+            <p>Left Click: Add coordinate point</p>
+            <p>Right Click: Clear all coordinates</p>
+            <p>Middle Click: Show current coordinates</p>
+        </div>
+
+        <canvas id="videoFrame" width="1200" height="720"></canvas>
+        
+        <div class="info-panel">
+            <h3>Current Coordinates:</h3>
+            <pre id="coordinates">No coordinates set</pre>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('videoFrame');
+        const ctx = canvas.getContext('2d');
+        const img_rw = 1200;  // resize width (same as ClickEvent.py)
+        const img_rh = 720;   // resize height (same as ClickEvent.py)
+        
+        // Get original image dimensions from backend
+        const img_ow = {{ img_ow }};  // original width
+        const img_oh = {{ img_oh }};  // original height
+
+        // Load initial frame
+        function loadFrame() {
+            fetch('/get_initial_frame')
+                .then(response => response.blob())
+                .then(blob => {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0, img_rw, img_rh);
+                        loadCoordinates();
+                    };
+                    img.src = URL.createObjectURL(blob);
+                });
+        }
+
+        // Mouse event handler - replicating ClickEvent.py functionality
+        canvas.addEventListener('mousedown', function(event) {
+            event.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // Left click - add coordinate
+            if (event.button === 0) {
+                const temp_x = Math.round(x * (img_ow/img_rw));
+                const temp_y = Math.round(y * (img_oh/img_rh));
+                
+                fetch('/add_coordinate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ x: temp_x, y: temp_y })
+                }).then(() => {
+                    drawPoint(x, y);
+                    loadCoordinates();
+                });
+            }
+            // Right click - clear coordinates
+            else if (event.button === 2) {
+                fetch('/clear_coordinates', {
+                    method: 'POST'
+                }).then(() => {
+                    loadFrame();
+                    document.getElementById('coordinates').textContent = 'No coordinates set';
+                });
+            }
+            // Middle click - show coordinates
+            else if (event.button === 1) {
+                loadCoordinates();
+            }
+        });
+
+        // Prevent context menu on right click
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Draw a point on the canvas
+        function drawPoint(x, y) {
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        // Load and display coordinates
+        function loadCoordinates() {
+            fetch('/get_coordinates')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.coordinates.length > 0) {
+                        document.getElementById('coordinates').textContent = 
+                            data.coordinates.join(' ');
+                        
+                        // Draw all points
+                        for (let i = 0; i < data.coordinates.length; i += 2) {
+                            const x = (data.coordinates[i] * img_rw) / img_ow;
+                            const y = (data.coordinates[i + 1] * img_rh) / img_oh;
+                            drawPoint(x, y);
+                        }
+                    } else {
+                        document.getElementById('coordinates').textContent = 
+                            'No coordinates set';
+                    }
+                });
+        }
+
+        // Initialize
+        loadFrame();
+    </script>
+</body>
+</html>
