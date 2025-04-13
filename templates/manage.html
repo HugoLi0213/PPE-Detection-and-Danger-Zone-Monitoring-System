@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danger Zone Setup</title>
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #videoFrame {
+            border: 2px solid #333;
+        }
+        .info-panel {
+            background: #f0f0f0;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .back-button {
+            padding: 10px 20px;
+            background: #dc3545;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .back-button:hover {
+            background: #c82333;
+        }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-container">
+            <h1>Danger Zone Setup</h1>
+            <a href="/" class="back-button">Back to Home</a>
+        </div>
+        
+        <div class="info-panel">
+            <h3>Zone Management</h3>
+            <p>Use the buttons below to manage danger zones using the OpenCV interface:</p>
+            <button class="button" onclick="manageZone('draw')">Draw New Zone</button>
+            <button class="button" onclick="manageZone('view')">View Zones</button>
+            <button class="button" onclick="manageZone('delete')">Delete Zones</button>
+        </div>
+
+        <canvas id="videoFrame" width="1200" height="720"></canvas>
+        
+        <div class="info-panel">
+            <h3>Current Zones:</h3>
+            <pre id="zones">No zones set</pre>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('videoFrame');
+        const ctx = canvas.getContext('2d');
+        const img_rw = 1200;
+        const img_rh = 720;
+
+        // Load initial frame
+        function loadFrame() {
+            fetch('/get_initial_frame')
+                .then(response => response.blob())
+                .then(blob => {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0, img_rw, img_rh);
+                        loadZones();
+                    };
+                    img.src = URL.createObjectURL(blob);
+                });
+        }
+
+        // Load and display zones
+        function loadZones() {
+            fetch('/get_zones')
+                .then(response => response.json())
+                .then(data => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    loadFrame(); // Reload frame to clear previous drawings
+                    if (data.zones.length > 0) {
+                        document.getElementById('zones').textContent = 
+                            JSON.stringify(data.zones, null, 2);
+                        
+                        // Draw all zones
+                        data.zones.forEach((zone, index) => {
+                            ctx.beginPath();
+                            ctx.strokeStyle = index === 0 ? 'red' : 'blue';
+                            ctx.lineWidth = 2;
+                            zone.forEach((point, i) => {
+                                const x = point[0] * img_rw / point[0]; // Scale if needed
+                                const y = point[1] * img_rh / point[1];
+                                if (i === 0) {
+                                    ctx.moveTo(x, y);
+                                } else {
+                                    ctx.lineTo(x, y);
+                                }
+                            });
+                            ctx.closePath();
+                            ctx.stroke();
+                        });
+                    } else {
+                        document.getElementById('zones').textContent = 'No zones set';
+                    }
+                });
+        }
+
+        // Trigger zone management
+        function manageZone(mode) {
+            fetch(`/manage_zone/${mode}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(`Error: ${data.error}`);
+                    } else {
+                        alert(`Zone ${mode} completed`);
+                        loadZones();
+                    }
+                })
+                .catch(error => alert(`Error: ${error.message}`));
+        }
+
+        // Initialize
+        loadFrame();
+    </script>
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Updated Socket.IO client library to a newer version -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
+    <style>
+        /* Notification styles */
+        .notification {
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .notification.has-alert {
+            animation: bell-ring 1s infinite;
+            color: red;
+        }
+
+        .notification .badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .notification-panel {
+            display: none;
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 16px;
+            width: 300px;
+            z-index: 1000;
+        }
+        
+        .notification-panel.active {
+            display: block;
+        }
+        
+        /* UNSAFE status styling */
+        .unsafe-status {
+            background-color: #ff0000;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 12px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .unsafe-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        
+        .unsafe-text {
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        
+        .notification-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 5px;
+        }
+        
+        .notification-item.danger {
+            border-left: 4px solid red;
+            padding-left: 8px;
+            background-color: #fff8f8;
+        }
+        
+        @keyframes bell-ring {
+            0% { transform: rotate(0); }
+            10% { transform: rotate(10deg); }
+            20% { transform: rotate(-10deg); }
+            30% { transform: rotate(6deg); }
+            40% { transform: rotate(-6deg); }
+            50% { transform: rotate(0); }
+            100% { transform: rotate(0); }
+        }
+    </style>
+    <title>PPE and Danger Zone Monitoring</title>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <header class="navbar">
+        <div class="logo">SafetyMonitor</div>
+        <nav>
+            <a href="{{ url_for('index') }}" class="nav-item">PPE Detection</a>
+            <a href="{{ url_for('index') }}" class="nav-item">Danger Zones</a>
+            <a href="{{ url_for('stats') }}" class="nav-item">Statistics</a>
+            <a href="{{ url_for('manage') }}" class="nav-item">Manage</a>
+            <div class="nav-item notification" title="Notifications" id="notificationBell">🔔</div>
+        </nav>
+    </header>
+    
+    <!-- Notification Panel -->
+    <div class="notification-panel" id="notificationPanel">
+        <div id="unsafeStatus" class="unsafe-status" style="display: none;">
+            <div class="unsafe-icon">⚠️</div>
+            <div class="unsafe-text">UNSAFE</div>
+        </div>
+        <h3>Safety Alerts</h3>
+        <button id="clearAllNotifications" style="margin-top: 10px;">Clear All</button>
+        <div id="notificationList">
+            <!-- Notifications will be populated here -->
+        </div>
+    </div>
+
+    <!-- Add audio element for alert sound -->
+    <audio id="alertSound" src="{{ url_for('static', filename='alert.mp3') }}" preload="auto"></audio>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <h1>Welcome to the PPE and Danger Zone Monitoring Dashboard</h1>
+            <p>Real-time monitoring to ensure worker safety and prevent accidents.</p>
+        </div>
+    </section>
+
+    <!-- Content Section -->
+    <main class="content">
+        <!-- PPE Detection Section -->
+        <section id="ppe-section" class="card">
+            <h2>PPE Detection</h2>
+            <div class="video-controls">
+                <button onclick="startStream()">Start Stream</button>
+                <button onclick="stopStream()">Stop Stream</button>
+            </div>
+            <img id="videoFeed" src="" alt="Live PPE feed" class="video-feed hidden">
+            <p>Ensuring workers are properly equipped with PPE at all times.</p>
+        </section>
+        
+      
+    </main>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <form action="{{ url_for('manage') }}" method="get" style="display: inline;">
+            <button type="submit">Manage Danger Zones</button>
+        </form>
+        <form action="{{ url_for('stats') }}" method="get" style="display: inline;">
+            <button type="submit">View Statistics</button>
+        </form>
+    </div>
+    
+    <footer>
+        <p>© 2025 SafetyMonitor | All Rights Reserved</p>
+    </footer>
+
+    <script>
+        // Video feed control functions
+        function startStream() {
+            const videoFeed = document.getElementById('videoFeed');
+            videoFeed.src = "{{ url_for('video_feed') }}";
+            videoFeed.classList.remove('hidden');
+        }
+
+        function stopStream() {
+            const videoFeed = document.getElementById('videoFeed');
+            videoFeed.src = "";
+            videoFeed.classList.add('hidden');
+        }
+
+        function startDangerZoneStream() {
+            const dangerZoneFeed = document.getElementById('dangerZoneFeed');
+            dangerZoneFeed.src = "{{ url_for('danger_zone_feed') }}";
+            dangerZoneFeed.classList.remove('hidden');
+        }
+
+        function stopDangerZoneStream() {
+            const dangerZoneFeed = document.getElementById('dangerZoneFeed');
+            dangerZoneFeed.src = "";
+            dangerZoneFeed.classList.add('hidden');
+        }
+
+        // Combined notification system with WebSockets
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationBell = document.getElementById('notificationBell');
+            const notificationPanel = document.getElementById('notificationPanel');
+            const notificationList = document.getElementById('notificationList');
+            const clearAllBtn = document.getElementById('clearAllNotifications');
+            const unsafeStatus = document.getElementById('unsafeStatus');
+            const alertSound = document.getElementById('alertSound');
+            
+            // Socket.IO connection (WebSocket)
+            const socket = io();
+            
+            // Fallback polling for browsers that might not support WebSockets
+            const checkInterval = setInterval(checkNotifications, 3000);
+            
+            // WebSocket handler for safety alerts
+            socket.on('safety_alert', function(data) {
+                console.log('Received safety alert via WebSocket:', data);
+                updateNotificationUI(data);
+            });
+            
+            // Listen for clear notifications event
+            socket.on('clear_alerts', function(data) {
+                if (data.success) {
+                    resetNotificationState();
+                }
+            });
+
+            // Listen for zone updates
+            socket.on('zone_updated', function(data) {
+                console.log('Zones updated:', data);
+                // Refresh both video feeds if they are active
+                const videoFeed = document.getElementById('videoFeed');
+                const dangerZoneFeed = document.getElementById('dangerZoneFeed');
+                
+                if (!videoFeed.classList.contains('hidden')) {
+                    videoFeed.src = "{{ url_for('video_feed') }}?" + new Date().getTime();
+                }
+                if (!dangerZoneFeed.classList.contains('hidden')) {
+                    dangerZoneFeed.src = "{{ url_for('danger_zone_feed') }}?" + new Date().getTime();
+                }
+            });
+            
+            // Function to update notification UI based on alert data
+            function updateNotificationUI(data) {
+                if (data.active) {
+                    // Show UNSAFE status
+                    unsafeStatus.style.display = 'flex';
+                    notificationBell.classList.add('has-alert');
+                    notificationBell.innerHTML = `🔔 <span class="badge">${data.count}</span>`;
+                    
+                    // Play alert sound
+                    playAlertSound();
+                    
+                    // Add notification to panel
+                    if (data.timestamp) {
+                        addNotificationItem(data);
+                    }
+                } else {
+                    resetNotificationState();
+                }
+            }
+            
+            // Add a new notification item to the panel
+            function addNotificationItem(data) {
+                const timestamp = new Date(data.timestamp);
+                const formattedTime = timestamp.toLocaleTimeString();
+                
+                // Only add if it's a new notification
+                if (!document.querySelector(`.notification-item[data-timestamp="${data.timestamp}"]`)) {
+                    const newNotification = document.createElement('div');
+                    newNotification.className = 'notification-item danger';
+                    newNotification.dataset.timestamp = data.timestamp;
+                    newNotification.innerHTML = `
+                        <strong>UNSAFE CONDITION!</strong>
+                        <p>${data.message || 'Person without proper PPE detected in danger zone'}</p>
+                        <small>${formattedTime}</small>
+                    `;
+                    notificationList.prepend(newNotification);
+                }
+            }
+            
+            // Reset notification state
+            function resetNotificationState() {
+                unsafeStatus.style.display = 'none';
+                notificationBell.classList.remove('has-alert');
+                notificationBell.innerHTML = '🔔';
+                notificationList.innerHTML = '';
+            }
+            
+            // Play alert sound
+            function playAlertSound() {
+                alertSound.play().catch(e => {
+                    console.error('Error playing alert sound:', e);
+                });
+            }
+            
+            // HTTP polling fallback
+            function checkNotifications() {
+                fetch('/api/notifications/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Polling for notifications:', data);
+                        updateNotificationUI(data);
+                    })
+                    .catch(error => console.error('Error checking notifications:', error));
+            }
+            
+            // Toggle notification panel when bell is clicked
+            notificationBell.addEventListener('click', function() {
+                notificationPanel.classList.toggle('active');
+            });
+            
+            // Close notification panel when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!notificationBell.contains(event.target) && 
+                    !notificationPanel.contains(event.target)) {
+                    notificationPanel.classList.remove('active');
+                }
+            });
+            
+            // Clear all notifications
+            clearAllBtn.addEventListener('click', function() {
+                fetch('/api/notifications/clear', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Notifications cleared');
+                })
+                .catch(error => console.error('Error clearing notifications:', error));
+                
+                notificationPanel.classList.remove('active');
+            });
+        });
+    </script>
+</body>
+</html>
