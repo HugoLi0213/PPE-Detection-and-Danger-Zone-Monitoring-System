@@ -74,6 +74,8 @@ if not os.path.exists(ppe_v11_path):
 
 # Construct the path to the Zone.txt file in the utils directory
 zone_text_dir = os.path.join(os.path.dirname(__file__), 'zone')
+if not os.path.exists(zone_text_dir):
+    os.makedirs(zone_text_dir)
 zone_text_path = os.path.join(zone_text_dir, text_name)
 # Check if the file exists
 if not os.path.exists(zone_text_path):
