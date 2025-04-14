@@ -1,0 +1,310 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>PPE Monitoring Statistics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        p {
+            line-height: 1.6;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        /* Hero Section */
+        .hero {
+            background-color: #0a9396;
+            color: #fff;
+            padding: 2rem 1rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            margin: 0;
+        }
+
+        /* Statistics Section */
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin: 2rem auto;
+            padding: 1rem;
+            max-width: 800px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats p {
+            font-size: 1.2rem;
+            margin: 0.5rem 0;
+        }
+
+        .stats span {
+            font-weight: bold;
+            color: #005f73;
+        }
+
+        /* Chart Container */
+        #chart-container {
+            width: 90%;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+        
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <header class="navbar">
+        <div class="logo">SafetyMonitor</div>
+        <nav>
+            <a href="{{ url_for('index') }}" class="nav-item">PPE Detection</a>
+            <a href="{{ url_for('stats') }}" class="nav-item">Statistics</a>
+            <a href="{{ url_for('manage') }}" class="nav-item">Manage</a>
+            <div class="nav-item notification" title="Notifications">🔔</div>
+        </nav>
+    </header>
+    
+    <!-- Notification Panel -->
+    <div class="notification-panel" id="notificationPanel">
+        <div id="unsafeStatus" class="unsafe-status" style="display: none;">
+            <div class="unsafe-icon">⚠️</div>
+            <div class="unsafe-text">UNSAFE</div>
+        </div>
+        <h3>Safety Alerts</h3>
+        <button id="clearAllNotifications" style="margin-top: 10px;">Clear All</button>
+        <div id="notificationList">
+            <!-- Notifications will be populated here -->
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Statistics Dashboard</h1>
+    </section>
+
+    <h1>PPE Statistics</h1>
+    <div class="stats">
+        <p>Date: <span id="date">Loading...</span></p>
+        <p>Total Persons: <span id="total-persons">0</span></p>
+        <p>Workers with PPE: <span id="with-ppe">0</span></p>
+        <p>Workers without PPE: <span id="without-ppe">0</span></p>
+        <button type="submit" id="view-screenshots-btn">View Screenshots</button>
+    </div>
+    
+    <!-- Chart Container -->
+    <div id="chart-container">
+        <canvas id="ppeChart"></canvas>
+    </div>
+
+    <script>
+        // Initialize chart
+        const ctx = document.getElementById('ppeChart').getContext('2d');
+        const ppeChart = new Chart(ctx, {
+            type: 'bar', // Bar chart
+            data: {
+                labels: ['With PPE', 'Without PPE'], // Categories
+                datasets: [{
+                    label: 'Number of Workers',
+                    data: [0, 0], // Initial data
+                    backgroundColor: ['#36a2eb', '#ff6384'], // Blue for PPE, Red for no PPE
+                    borderColor: ['#36a2eb', '#ff6384'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        enabled: true
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        function fetchStats() {
+            fetch('/get_ppe_stats')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('date').innerText = data.date;
+                    document.getElementById('total-persons').innerText = data.total_persons;
+                    document.getElementById('with-ppe').innerText = data.with_ppe;
+                    document.getElementById('without-ppe').innerText = data.without_ppe;
+
+                    // Update chart data
+                    ppeChart.data.datasets[0].data = [data.with_ppe, data.without_ppe];
+                    ppeChart.update(); // Refresh chart
+                });
+        }
+
+        document.getElementById('view-screenshots-btn').addEventListener('click', function() {
+        window.location.href = '/screenshots';
+        });
+
+        // Fetch stats every second
+        setInterval(fetchStats, 1000);
+
+    // Combined notification system with WebSockets
+document.addEventListener('DOMContentLoaded', function() {
+    const notificationBell = document.getElementById('notificationBell');
+    const notificationPanel = document.getElementById('notificationPanel');
+    const notificationList = document.getElementById('notificationList');
+    const clearAllBtn = document.getElementById('clearAllNotifications');
+    const unsafeStatus = document.getElementById('unsafeStatus');
+    const alertSound = document.getElementById('alertSound');
+    
+    // Socket.IO connection (WebSocket)
+    const socket = io();
+    
+    // Fallback polling for browsers that might not support WebSockets
+    const checkInterval = setInterval(checkNotifications, 3000);
+    
+    // WebSocket handler for safety alerts
+    socket.on('safety_alert', function(data) {
+        console.log('Received safety alert via WebSocket:', data);
+        updateNotificationUI(data);
+    });
+    
+    // Listen for clear notifications event
+    socket.on('clear_alerts', function(data) {
+        if (data.success) {
+            resetNotificationState();
+        }
+    });
+    
+    // Function to update notification UI based on alert data
+    function updateNotificationUI(data) {
+        if (data.active) {
+            // Show UNSAFE status
+            unsafeStatus.style.display = 'flex';
+            notificationBell.classList.add('has-alert');
+            notificationBell.innerHTML = `🔔 <span class="badge">${data.count}</span>`;
+            
+            // Play alert sound
+            playAlertSound();
+            
+            // Add notification to panel
+            if (data.timestamp) {
+                addNotificationItem(data);
+            }
+        } else {
+            resetNotificationState();
+        }
+    }
+    
+    // Add a new notification item to the panel
+    function addNotificationItem(data) {
+        const timestamp = new Date(data.timestamp);
+        const formattedTime = timestamp.toLocaleTimeString();
+        
+        // Only add if it's a new notification
+        if (!document.querySelector(`.notification-item[data-timestamp="${data.timestamp}"]`)) {
+            const newNotification = document.createElement('div');
+            newNotification.className = 'notification-item danger';
+            newNotification.dataset.timestamp = data.timestamp;
+            newNotification.innerHTML = `
+                <strong>UNSAFE CONDITION!</strong>
+                <p>${data.message || 'Person without proper PPE detected in danger zone'}</p>
+                <small>${formattedTime}</small>
+            `;
+            notificationList.prepend(newNotification);
+        }
+    }
+    
+    // Reset notification state
+    function resetNotificationState() {
+        unsafeStatus.style.display = 'none';
+        notificationBell.classList.remove('has-alert');
+        notificationBell.innerHTML = '🔔';
+        notificationList.innerHTML = '';
+    }
+    
+    // Play alert sound
+    function playAlertSound() {
+        alertSound.play().catch(e => {
+            console.error('Error playing alert sound:', e);
+        });
+    }
+    
+    // HTTP polling fallback
+    function checkNotifications() {
+        fetch('/api/notifications/status')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Polling for notifications:', data);
+                updateNotificationUI(data);
+            })
+            .catch(error => console.error('Error checking notifications:', error));
+    }
+    
+    // Toggle notification panel when bell is clicked
+    notificationBell.addEventListener('click', function() {
+        notificationPanel.classList.toggle('active');
+    });
+    
+    // Close notification panel when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!notificationBell.contains(event.target) && 
+            !notificationPanel.contains(event.target)) {
+            notificationPanel.classList.remove('active');
+        }
+    });
+    
+    // Clear all notifications
+    clearAllBtn.addEventListener('click', function() {
+        fetch('/api/notifications/clear', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Notifications cleared');
+        })
+        .catch(error => console.error('Error clearing notifications:', error));
+        
+        notificationPanel.classList.remove('active');
+    });
+});
+    </script>
+
+    <!-- Footer -->
+    <footer>
+        <p>© 2025 SafetyMonitor | All Rights Reserved</p>
+    </footer>
