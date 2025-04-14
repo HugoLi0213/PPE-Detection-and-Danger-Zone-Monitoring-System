@@ -2,6 +2,19 @@
 
 A real-time computer vision system that monitors construction sites to ensure workers are wearing proper Personal Protective Equipment (PPE) and are not entering defined danger zones.
 
+## Recent Improvements (Hugo14april branch)
+
+This branch introduces several significant improvements to the system:
+
+- **Enhanced UI**: Modern interface with improved styling, icons, and better user feedback
+- **Cross-Platform Support**: Complete compatibility with both Windows PCs and Jetson Nano devices
+- **Video Source Selection**: New UI component to easily switch between camera and video files
+- **Multiple Camera Support**: Dropdown menu to select from available cameras on the system
+- **Jetson Nano Optimization**: Special camera handling with GStreamer for optimal performance on Jetson devices
+- **Fixed Zone Management**: Improved zone creation and management with proper source-specific zones
+- **Platform-Independent Paths**: Robust file handling across different operating systems
+- **Command-Line Flexibility**: Added options to specify server IP and port for network accessibility
+
 ## Features
 
 - **PPE Detection**: Automatically detects if workers are wearing helmets and safety vests
