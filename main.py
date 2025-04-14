@@ -6,6 +6,8 @@ eventlet.monkey_patch()
 # Now import other modules
 import argparse
 import os
+import sys
+import platform
 from datetime import datetime
 
 import cv2
@@ -13,9 +15,11 @@ import numpy as np
 import torch
 from flask import Flask, Response, jsonify, render_template, request
 from flask_socketio import SocketIO, emit
-from pygrabber.dshow_graph import FilterGraph
 from shapely.geometry import Polygon
 from ultralytics import YOLO
+
+# Determine if we're on Windows or Linux
+is_windows = platform.system() == "Windows"
 
 # Flask app initialization
 app = Flask(__name__, static_folder='static')
@@ -25,6 +29,8 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--Input", default=None, help="Path to input image, video, or None for camera")
 parser.add_argument("--model-version", choices=["v8", "v11"], default="v8", help="YOLO model version (v8 or v11)")
+parser.add_argument("--ip", default="127.0.0.1", help="IP address to run the server on")
+parser.add_argument("--port", type=int, default=5000, help="Port to run the server on")
 args = parser.parse_args()
 
 # Settings
@@ -37,11 +43,49 @@ input_type = ""
 input_name = ""
 img_rh = 720
 img_rw = 1200
+video_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'video')
+current_video_path = None
 
 # Model settings
 class ModelSettings:
     conf_threshold: float = 0.8
     iou_threshold: float = 0.4
+
+# Camera device detection (platform-specific)
+def get_available_cameras():
+    cameras = []
+    # Try to detect cameras using OpenCV's approach
+    if is_windows:
+        # Import pygrabber only on Windows
+        try:
+            from pygrabber.dshow_graph import FilterGraph
+            devices = FilterGraph().get_input_devices()
+            for i, device in enumerate(devices):
+                cameras.append({"index": i, "name": device})
+        except ImportError:
+            print("Warning: pygrabber not installed, falling back to OpenCV camera detection")
+            index = 0
+            while True:
+                cap = cv2.VideoCapture(index)
+                if not cap.isOpened():
+                    break
+                cameras.append({"index": index, "name": f"Camera {index}"})
+                cap.release()
+                index += 1
+    else:
+        # Linux approach (works for Jetson Nano)
+        # Check for cameras in /dev/video*
+        import glob
+        video_devices = glob.glob('/dev/video*')
+        for i, device in enumerate(sorted(video_devices)):
+            index = int(device.split('video')[1])
+            # Try to open to verify it works
+            cap = cv2.VideoCapture(index)
+            if cap.isOpened():
+                cameras.append({"index": index, "name": f"Camera {index}"})
+                cap.release()
+    
+    return cameras
 
 # Determine input type
 if args.Input is not None:
@@ -59,21 +103,32 @@ if args.Input is not None:
         print("Input not exist, exiting...")
         exit()
 else:
-    devices = FilterGraph().get_input_devices()
-    if len(devices) != 0:
+    cameras = get_available_cameras()
+    if cameras:
         input_type = "camera"
-        input_name = devices[camera_index]
+        camera_index = cameras[0]["index"]
+        input_name = cameras[0]["name"]
     else:
         print("No camera detected, exiting...")
         exit()
 
+# Ensure all directories exist with platform-independent paths
+def ensure_dir(directory):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
 # Directories
-models_dir = os.path.join(os.path.dirname(__file__), 'models')
-detected_dir = os.path.join(os.path.dirname(__file__), 'detected')
-zone_dir = os.path.join(os.path.dirname(__file__), 'zone')
-for d in [detected_dir, zone_dir]:
-    if not os.path.exists(d):
-        os.makedirs(d)
+base_dir = os.path.dirname(os.path.abspath(__file__))
+models_dir = os.path.join(base_dir, 'models')
+detected_dir = os.path.join(base_dir, 'detected')
+zone_dir = os.path.join(base_dir, 'zone')
+screenshots_dir = os.path.join(base_dir, 'static', 'screenshots')
+
+for d in [models_dir, detected_dir, zone_dir, screenshots_dir]:
+    ensure_dir(d)
+    
+# Check if video folder exists, create if not
+ensure_dir(video_folder)
 
 # Model paths
 person_model_path = os.path.join(models_dir, 'yolov11s.pt')
@@ -145,12 +200,9 @@ def ZONE_overlap(person_box, zone_coord):
     return 0
 
 def save_screenshot(frame, zone_idx=None):
-    screenshot_dir = os.path.join(os.path.dirname(__file__), 'static', 'screenshots')
-    if not os.path.exists(screenshot_dir):
-        os.makedirs(screenshot_dir)
     prefix = f"zone{zone_idx}" if zone_idx is not None else "alert"
     screenshot_name = screenshot_name_format.format(prefix, datetime.now(), "jpg")
-    screenshot_path = os.path.join(screenshot_dir, screenshot_name)
+    screenshot_path = os.path.join(screenshots_dir, screenshot_name)
     cv2.imwrite(screenshot_path, frame)
     return screenshot_name
 
@@ -272,6 +324,21 @@ def process_frame(frame, mode="ppe"):
     ppe_stats["date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return frame, zone_frame_arr, roi_has_unsafe
 
+# Special camera source creator for Jetson Nano
+def create_camera_source(camera_index):
+    if "jetson" in platform.machine().lower():
+        # Use gstreamer pipeline for Jetson Nano
+        return cv2.VideoCapture(
+            f"nvarguscamerasrc sensor-id={camera_index} ! "
+            "video/x-raw(memory:NVMM), width=1280, height=720, format=NV12, framerate=30/1 ! "
+            "nvvidconv flip-method=0 ! video/x-raw, format=BGRx ! "
+            "videoconvert ! video/x-raw, format=BGR ! appsink drop=1", 
+            cv2.CAP_GSTREAMER
+        )
+    else:
+        # Normal camera for other platforms
+        return cv2.VideoCapture(camera_index)
+
 def generate_frames(mode="ppe"):
     if input_type == "image":
         frame = cv2.imread(args.Input)
@@ -281,9 +348,15 @@ def generate_frames(mode="ppe"):
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
         return
 
-    cap = cv2.VideoCapture(args.Input if input_type == "video" else camera_index)
+    # Use current_video_path if available, otherwise use args.Input or camera
+    if input_type == "video":
+        video_source = current_video_path if current_video_path else args.Input
+        cap = cv2.VideoCapture(video_source)
+    else:  # camera
+        cap = create_camera_source(camera_index)
+    
     if not cap.isOpened():
-        raise RuntimeError('Could not start camera.')
+        raise RuntimeError('Could not start camera or video.')
     
     frame_count = 0
     while True:
@@ -310,9 +383,15 @@ def generate_raw_frames():
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
         return
 
-    cap = cv2.VideoCapture(args.Input if input_type == "video" else camera_index)
+    # Use current_video_path if available, otherwise use args.Input or camera
+    if input_type == "video":
+        video_source = current_video_path if current_video_path else args.Input
+        cap = cv2.VideoCapture(video_source)
+    else:  # camera
+        cap = create_camera_source(camera_index)
+    
     if not cap.isOpened():
-        raise RuntimeError('Could not start camera.')
+        raise RuntimeError('Could not start camera or video.')
     
     frame_count = 0
     while True:
@@ -335,6 +414,54 @@ def generate_raw_frames():
 def index():
     return render_template('index.html')
 
+@app.route('/get_available_videos')
+def get_available_videos():
+    videos = []
+    if os.path.exists(video_folder):
+        for file in os.listdir(video_folder):
+            if file.lower().endswith(('.mp4', '.avi', '.mov')):
+                videos.append({
+                    'name': file,
+                    'path': os.path.join(video_folder, file)
+                })
+    return jsonify({'videos': videos})
+
+@app.route('/set_video_source', methods=['POST'])
+def set_video_source():
+    global input_type, input_name, current_video_path, zone_text_path, camera_index
+    data = request.json
+    source_type = data.get('source_type')
+    
+    if source_type == 'camera':
+        input_type = 'camera'
+        # Get first available camera
+        cameras = get_available_cameras()
+        if cameras:
+            camera_index = cameras[0]["index"]
+            input_name = cameras[0]["name"]
+        else:
+            return jsonify({"error": "No camera detected"}), 400
+        current_video_path = None
+    elif source_type == 'video':
+        video_path = data.get('video_path')
+        if video_path and os.path.exists(video_path):
+            input_type = 'video'
+            input_name = os.path.basename(video_path)
+            current_video_path = video_path
+        else:
+            return jsonify({"error": "Invalid video path"}), 400
+    
+    # Update zone text path for the new input
+    zone_text_path = os.path.join(zone_dir, text_name_format.format("zone", input_name, "txt"))
+    if not os.path.exists(zone_text_path):
+        with open(zone_text_path, "w"):
+            pass
+    
+    # Reload zones for the new input
+    load_zones()
+    
+    return jsonify({"status": "success", "source": input_type})
+
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames("ppe"), mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -349,7 +476,13 @@ def manage_video_feed():
 
 @app.route('/manage')
 def manage():
-    cap = cv2.VideoCapture(args.Input if input_type in ["video", "image"] else camera_index)
+    # Use current_video_path if available, otherwise use args.Input or camera
+    if input_type == "video" or input_type == "image":
+        video_source = current_video_path if input_type == "video" and current_video_path else args.Input
+        cap = cv2.VideoCapture(video_source)
+    else:  # camera
+        cap = create_camera_source(camera_index)
+        
     success, frame = cap.read()
     if success:
         img_oh, img_ow = frame.shape[:2]
@@ -366,7 +499,13 @@ def save_zone():
             return jsonify({"error": "No coordinates provided"}), 400
         
         # Adjust coordinates for original image dimensions
-        cap = cv2.VideoCapture(args.Input if input_type in ["video", "image"] else camera_index)
+        # Use current_video_path if available
+        if input_type == "video" or input_type == "image":
+            video_source = current_video_path if input_type == "video" and current_video_path else args.Input
+            cap = cv2.VideoCapture(video_source)
+        else:  # camera
+            cap = create_camera_source(camera_index)
+            
         success, frame = cap.read()
         if not success:
             cap.release()
@@ -426,7 +565,13 @@ def get_zones():
                 zones = [eval(line.strip()) for line in f.readlines() if line.strip()]
         
         # Adjust coordinates for display (scale down to canvas size)
-        cap = cv2.VideoCapture(args.Input if input_type in ["video", "image"] else camera_index)
+        # Use current_video_path if available
+        if input_type == "video" or input_type == "image":
+            video_source = current_video_path if input_type == "video" and current_video_path else args.Input
+            cap = cv2.VideoCapture(video_source)
+        else:  # camera
+            cap = create_camera_source(camera_index)
+            
         success, frame = cap.read()
         if not success:
             cap.release()
@@ -444,7 +589,13 @@ def get_zones():
 
 @app.route('/get_initial_frame')
 def get_initial_frame():
-    cap = cv2.VideoCapture(args.Input if input_type in ["video", "image"] else camera_index)
+    # Use current_video_path if available, otherwise use args.Input or camera
+    if input_type == "video" or input_type == "image":
+        video_source = current_video_path if input_type == "video" and current_video_path else args.Input
+        cap = cv2.VideoCapture(video_source)
+    else:  # camera
+        cap = create_camera_source(camera_index)
+        
     success, frame = cap.read()
     if success:
         frame = cv2.resize(frame, (img_rw, img_rh))
@@ -463,10 +614,7 @@ def get_ppe_stats():
 
 @app.route('/screenshots')
 def show_screenshots():
-    screenshot_dir = os.path.join(os.path.dirname(__file__), 'static', 'screenshots')
-    if not os.path.exists(screenshot_dir):
-        os.makedirs(screenshot_dir)
-    screenshots = [f for f in os.listdir(screenshot_dir) if f.endswith('.jpg')]
+    screenshots = [f for f in os.listdir(screenshots_dir) if f.endswith('.jpg')]
     return render_template('screenshots.html', screenshots=screenshots)
 
 @app.route('/api/notifications/clear', methods=['POST'])
@@ -495,6 +643,57 @@ def update_model_settings():
     except ValueError:
         return jsonify({"error": "Invalid threshold values"}), 400
 
+@app.route('/get_current_source')
+def get_current_source():
+    source_info = {
+        'type': input_type,
+        'name': input_name
+    }
+    if input_type == 'video' and current_video_path:
+        source_info['path'] = current_video_path
+    return jsonify(source_info)
+
+@app.route('/get_available_cameras')
+def get_available_cameras_route():
+    cameras = get_available_cameras()
+    return jsonify({"cameras": cameras})
+
+@app.route('/set_camera', methods=['POST'])
+def set_camera():
+    global input_type, input_name, current_video_path, zone_text_path, camera_index
+    data = request.json
+    camera_idx = data.get('camera_index')
+    
+    if camera_idx is not None:
+        try:
+            camera_idx = int(camera_idx)
+            # Test if camera can be opened
+            cap = cv2.VideoCapture(camera_idx)
+            if not cap.isOpened():
+                cap.release()
+                return jsonify({"error": "Could not open camera"}), 400
+            cap.release()
+            
+            input_type = 'camera'
+            camera_index = camera_idx
+            input_name = f"Camera {camera_idx}"
+            current_video_path = None
+            
+            # Update zone text path for the new input
+            zone_text_path = os.path.join(zone_dir, text_name_format.format("zone", input_name, "txt"))
+            if not os.path.exists(zone_text_path):
+                with open(zone_text_path, "w"):
+                    pass
+            
+            # Reload zones for the new input
+            load_zones()
+            
+            return jsonify({"status": "success"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+    else:
+        return jsonify({"error": "No camera index provided"}), 400
+
 # WebSocket handlers
 @socketio.on('connect')
 def handle_connect():
@@ -510,4 +709,15 @@ def handle_disconnect():
     print('Client disconnected')
 
 if __name__ == '__main__':
-    socketio.run(app, host='127.0.0.1', port=5000, debug=True)
+    # Print information about running environment
+    print(f"Running on {platform.system()} ({platform.machine()})")
+    print(f"Python version: {platform.python_version()}")
+    print(f"OpenCV version: {cv2.__version__}")
+    print(f"PyTorch version: {torch.__version__}")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"CUDA device: {torch.cuda.get_device_name(0)}")
+    
+    # Start the server
+    print(f"Starting server at http://{args.ip}:{args.port}")
+    socketio.run(app, host=args.ip, port=args.port, debug=True)

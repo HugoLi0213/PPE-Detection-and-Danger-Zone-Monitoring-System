@@ -172,6 +172,11 @@
     <div class="zone-management">
         <h1>Danger Zone Management</h1>
         
+        <div class="current-source-info">
+            <h3>Current Source: <span id="currentSourceName">Loading...</span></h3>
+            <p>Make sure to define danger zones specific to this video source.</p>
+        </div>
+        
         <div class="instructions">
             <h3>Instructions:</h3>
             <ol>
@@ -570,6 +575,17 @@
             canvas.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
             });
+
+            // Get information about the current source
+            fetch('/get_current_source')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentSourceName').textContent = data.name || 'Unknown';
+                })
+                .catch(error => {
+                    console.error('Error fetching current source:', error);
+                    document.getElementById('currentSourceName').textContent = 'Error loading source info';
+                });
         });
     </script>
 </body>

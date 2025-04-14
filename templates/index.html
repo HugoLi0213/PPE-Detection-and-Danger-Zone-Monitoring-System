@@ -4,9 +4,224 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Updated Socket.IO client library to a newer version -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
     <style>
+        /* Modern UI Styles */
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --background-color: #f8f9fa;
+            --text-color: #333;
+            --card-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+        }
+        
+        .navbar {
+            background-color: var(--secondary-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .logo {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        nav {
+            display: flex;
+            gap: 1.5rem;
+        }
+        
+        .nav-item {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-item:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        
+        .hero-content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+        
+        .hero-content p {
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .content {
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .card h2 {
+            color: var(--secondary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+        
+        .video-feed {
+            width: 100%;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        
+        .video-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .video-controls button {
+            padding: 0.5rem 1rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .video-controls button:hover {
+            background-color: #2980b9;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .action-buttons {
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        
+        .action-buttons button {
+            padding: 0.75rem 1.5rem;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .action-buttons button:hover {
+            background-color: #34495e;
+        }
+        
+        footer {
+            background-color: var(--secondary-color);
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        /* Video Source Selection */
+        .video-source-selection {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background-color: #f1f1f1;
+            border-radius: 6px;
+        }
+        
+        .source-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .source-buttons button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            background-color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .source-buttons button.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .video-list {
+            display: none;
+            margin-top: 1rem;
+        }
+        
+        .video-list.active {
+            display: block;
+        }
+        
+        .video-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            background-color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .video-item:hover {
+            background-color: #e9ecef;
+        }
+        
+        .video-item.selected {
+            background-color: #e3f2fd;
+            border-left: 3px solid var(--primary-color);
+        }
+        
+        .video-item i {
+            margin-right: 0.5rem;
+            color: var(--primary-color);
+        }
+
         /* Notification styles */
         .notification {
             position: relative;
@@ -93,18 +308,54 @@
             50% { transform: rotate(0); }
             100% { transform: rotate(0); }
         }
+        
+        .screenshot-preview {
+            max-width: 100%;
+            margin-top: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .camera-list {
+            display: none;
+            margin-top: 1rem;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .camera-list.active {
+            display: flex;
+        }
+
+        .source-dropdown {
+            flex-grow: 1;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        .camera-list button {
+            padding: 8px 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
     </style>
     <title>PPE and Danger Zone Monitoring</title>
 </head>
 <body>
     <!-- Navigation Bar -->
     <header class="navbar">
-        <div class="logo">SafetyMonitor</div>
+        <div class="logo"><i class="fas fa-hard-hat"></i> SafetyMonitor</div>
         <nav>
-            <a href="{{ url_for('index') }}" class="nav-item">PPE Detection</a>
-            <a href="{{ url_for('stats') }}" class="nav-item">Statistics</a>
-            <a href="{{ url_for('manage') }}" class="nav-item">Manage</a>
-            <div class="nav-item notification" title="Notifications" id="notificationBell">🔔</div>
+            <a href="{{ url_for('index') }}" class="nav-item"><i class="fas fa-shield-alt"></i> PPE Detection</a>
+            <a href="{{ url_for('stats') }}" class="nav-item"><i class="fas fa-chart-bar"></i> Statistics</a>
+            <a href="{{ url_for('manage') }}" class="nav-item"><i class="fas fa-map-marked-alt"></i> Manage</a>
+            <div class="nav-item notification" title="Notifications" id="notificationBell"><i class="fas fa-bell"></i></div>
         </nav>
     </header>
     
@@ -115,7 +366,7 @@
             <div class="unsafe-text">UNSAFE</div>
         </div>
         <h3>Safety Alerts</h3>
-        <button id="clearAllNotifications" style="margin-top: 10px;">Clear All</button>
+        <button id="clearAllNotifications" style="margin-top: 10px;"><i class="fas fa-trash-alt"></i> Clear All</button>
         <div id="notificationList">
             <!-- Notifications will be populated here -->
         </div>
@@ -127,7 +378,7 @@
     <!-- Hero Section -->
     <section class="hero-section">
         <div class="hero-content">
-            <h1>Welcome to the PPE and Danger Zone Monitoring Dashboard</h1>
+            <h1><i class="fas fa-hard-hat"></i> PPE and Danger Zone Monitoring</h1>
             <p>Real-time monitoring to ensure worker safety and prevent accidents.</p>
         </div>
     </section>
@@ -136,25 +387,48 @@
     <main class="content">
         <!-- PPE Detection Section -->
         <section id="ppe-section" class="card">
-            <h2>PPE Detection</h2>
+            <h2><i class="fas fa-shield-alt"></i> PPE Detection</h2>
+            
+            <!-- Video Source Selection -->
+            <div class="video-source-selection">
+                <h3>Select Video Source</h3>
+                <div class="source-buttons">
+                    <button id="cameraSource" class="active"><i class="fas fa-camera"></i> Camera</button>
+                    <button id="videoSource"><i class="fas fa-video"></i> Video File</button>
+                </div>
+                
+                <!-- Camera selection dropdown -->
+                <div id="cameraList" class="camera-list active">
+                    <select id="cameraSelect" class="source-dropdown">
+                        <option value="" disabled selected>Select a camera...</option>
+                        <!-- Camera options will be loaded here -->
+                    </select>
+                    <button id="refreshCamerasBtn"><i class="fas fa-sync-alt"></i> Refresh Cameras</button>
+                </div>
+                
+                <!-- Video file selection list -->
+                <div id="videoList" class="video-list">
+                    <!-- Video files will be listed here -->
+                    <p id="loadingVideos">Loading available videos...</p>
+                </div>
+            </div>
+            
             <div class="video-controls">
-                <button onclick="startStream()">Start Stream</button>
-                <button onclick="stopStream()">Stop Stream</button>
+                <button onclick="startStream()"><i class="fas fa-play"></i> Start Stream</button>
+                <button onclick="stopStream()"><i class="fas fa-stop"></i> Stop Stream</button>
             </div>
             <img id="videoFeed" src="" alt="Live PPE feed" class="video-feed hidden">
             <p>Ensuring workers are properly equipped with PPE at all times.</p>
         </section>
-        
-
     </main>
 
     <!-- Action Buttons -->
     <div class="action-buttons">
         <form action="{{ url_for('manage') }}" method="get" style="display: inline;">
-            <button type="submit">Manage Danger Zones</button>
+            <button type="submit"><i class="fas fa-map-marked-alt"></i> Manage Danger Zones</button>
         </form>
         <form action="{{ url_for('stats') }}" method="get" style="display: inline;">
-            <button type="submit">View Statistics</button>
+            <button type="submit"><i class="fas fa-chart-bar"></i> View Statistics</button>
         </form>
     </div>
     
@@ -166,7 +440,7 @@
         // Video feed control functions
         function startStream() {
             const videoFeed = document.getElementById('videoFeed');
-            videoFeed.src = "{{ url_for('video_feed') }}";
+            videoFeed.src = "{{ url_for('video_feed') }}?" + new Date().getTime();
             videoFeed.classList.remove('hidden');
         }
 
@@ -176,20 +450,170 @@
             videoFeed.classList.add('hidden');
         }
 
-        function startDangerZoneStream() {
-            const dangerZoneFeed = document.getElementById('dangerZoneFeed');
-            dangerZoneFeed.src = "{{ url_for('danger_zone_feed') }}";
-            dangerZoneFeed.classList.remove('hidden');
-        }
-
-        function stopDangerZoneStream() {
-            const dangerZoneFeed = document.getElementById('dangerZoneFeed');
-            dangerZoneFeed.src = "";
-            dangerZoneFeed.classList.add('hidden');
-        }
-
-        // Combined notification system with WebSockets
+        // Video source selection
         document.addEventListener('DOMContentLoaded', function() {
+            const cameraSourceBtn = document.getElementById('cameraSource');
+            const videoSourceBtn = document.getElementById('videoSource');
+            const videoList = document.getElementById('videoList');
+            const cameraList = document.getElementById('cameraList');
+            const cameraSelect = document.getElementById('cameraSelect');
+            const refreshCamerasBtn = document.getElementById('refreshCamerasBtn');
+            
+            // Load available cameras when page loads
+            loadAvailableCameras();
+            
+            // Refresh cameras button
+            refreshCamerasBtn.addEventListener('click', function() {
+                loadAvailableCameras();
+            });
+            
+            // Handle camera selection
+            cameraSelect.addEventListener('change', function() {
+                const selectedCameraIndex = this.value;
+                if (selectedCameraIndex) {
+                    fetch('/set_camera', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            camera_index: selectedCameraIndex
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Refresh stream if it's active
+                            const videoFeed = document.getElementById('videoFeed');
+                            if (!videoFeed.classList.contains('hidden')) {
+                                startStream();
+                            }
+                        } else {
+                            alert(data.error || 'Error setting camera');
+                        }
+                    });
+                }
+            });
+            
+            // Function to load available cameras
+            function loadAvailableCameras() {
+                cameraSelect.innerHTML = '<option value="" disabled selected>Loading cameras...</option>';
+                
+                fetch('/get_available_cameras')
+                    .then(response => response.json())
+                    .then(data => {
+                        cameraSelect.innerHTML = '<option value="" disabled selected>Select a camera...</option>';
+                        
+                        if (data.cameras.length === 0) {
+                            cameraSelect.innerHTML += '<option value="" disabled>No cameras detected</option>';
+                        } else {
+                            data.cameras.forEach(camera => {
+                                const option = document.createElement('option');
+                                option.value = camera.index;
+                                option.textContent = camera.name;
+                                cameraSelect.appendChild(option);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        cameraSelect.innerHTML = '<option value="" disabled selected>Error loading cameras</option>';
+                        console.error('Error loading cameras:', error);
+                    });
+            }
+            
+            // Load available videos when clicking on video source button
+            videoSourceBtn.addEventListener('click', function() {
+                cameraSourceBtn.classList.remove('active');
+                videoSourceBtn.classList.add('active');
+                videoList.classList.add('active');
+                cameraList.classList.remove('active');
+                
+                // Fetch available videos
+                fetch('/get_available_videos')
+                    .then(response => response.json())
+                    .then(data => {
+                        const loadingElement = document.getElementById('loadingVideos');
+                        videoList.removeChild(loadingElement);
+                        
+                        if (data.videos.length === 0) {
+                            const noVideos = document.createElement('p');
+                            noVideos.textContent = 'No video files found';
+                            videoList.appendChild(noVideos);
+                        } else {
+                            data.videos.forEach(video => {
+                                const videoItem = document.createElement('div');
+                                videoItem.className = 'video-item';
+                                videoItem.innerHTML = `<i class="fas fa-file-video"></i> ${video.name}`;
+                                videoItem.dataset.path = video.path;
+                                
+                                videoItem.addEventListener('click', function() {
+                                    // Remove selected class from all items
+                                    document.querySelectorAll('.video-item').forEach(item => {
+                                        item.classList.remove('selected');
+                                    });
+                                    
+                                    // Add selected class to clicked item
+                                    this.classList.add('selected');
+                                    
+                                    // Set video source
+                                    fetch('/set_video_source', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify({
+                                            source_type: 'video',
+                                            video_path: this.dataset.path
+                                        })
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.status === 'success') {
+                                            // Refresh stream if it's active
+                                            const videoFeed = document.getElementById('videoFeed');
+                                            if (!videoFeed.classList.contains('hidden')) {
+                                                startStream();
+                                            }
+                                        }
+                                    });
+                                });
+                                
+                                videoList.appendChild(videoItem);
+                            });
+                        }
+                    });
+            });
+            
+            // Switch to camera source
+            cameraSourceBtn.addEventListener('click', function() {
+                videoSourceBtn.classList.remove('active');
+                cameraSourceBtn.classList.add('active');
+                videoList.classList.remove('active');
+                cameraList.classList.add('active');
+                
+                // Set camera as source
+                fetch('/set_video_source', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        source_type: 'camera'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Refresh stream if it's active
+                        const videoFeed = document.getElementById('videoFeed');
+                        if (!videoFeed.classList.contains('hidden')) {
+                            startStream();
+                        }
+                    }
+                });
+            });
+            
+            // Notification system
             const notificationBell = document.getElementById('notificationBell');
             const notificationPanel = document.getElementById('notificationPanel');
             const notificationList = document.getElementById('notificationList');
@@ -221,15 +645,41 @@
                 console.log('Zones updated:', data);
                 // Refresh both video feeds if they are active
                 const videoFeed = document.getElementById('videoFeed');
-                const dangerZoneFeed = document.getElementById('dangerZoneFeed');
                 
                 if (!videoFeed.classList.contains('hidden')) {
                     videoFeed.src = "{{ url_for('video_feed') }}?" + new Date().getTime();
                 }
-                if (!dangerZoneFeed.classList.contains('hidden')) {
-                    dangerZoneFeed.src = "{{ url_for('danger_zone_feed') }}?" + new Date().getTime();
-                }
             });
+            
+            // Toggle notification panel
+            notificationBell.addEventListener('click', function() {
+                notificationPanel.classList.toggle('active');
+            });
+            
+            // Clear all notifications
+            clearAllBtn.addEventListener('click', function() {
+                fetch('/api/notifications/clear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        resetNotificationState();
+                    }
+                });
+            });
+            
+            // Function to check notifications (polling fallback)
+            function checkNotifications() {
+                fetch('/api/notifications/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        updateNotificationUI(data);
+                    });
+            }
             
             // Function to update notification UI based on alert data
             function updateNotificationUI(data) {
@@ -237,7 +687,7 @@
                     // Show UNSAFE status
                     unsafeStatus.style.display = 'flex';
                     notificationBell.classList.add('has-alert');
-                    notificationBell.innerHTML = `🔔 <span class="badge">${data.count}</span>`;
+                    notificationBell.innerHTML = `<i class="fas fa-bell"></i> <span class="badge">${data.count}</span>`;
                     
                     // Play alert sound
                     playAlertSound();
@@ -251,77 +701,43 @@
                 }
             }
             
-            // Add a new notification item to the panel
+            // Function to add notification item to panel
             function addNotificationItem(data) {
-                const timestamp = new Date(data.timestamp);
-                const formattedTime = timestamp.toLocaleTimeString();
+                const item = document.createElement('div');
+                item.className = 'notification-item danger';
                 
-                // Only add if it's a new notification
-                if (!document.querySelector(`.notification-item[data-timestamp="${data.timestamp}"]`)) {
-                    const newNotification = document.createElement('div');
-                    newNotification.className = 'notification-item danger';
-                    newNotification.dataset.timestamp = data.timestamp;
-                    newNotification.innerHTML = `
-                        <strong>UNSAFE CONDITION!</strong>
-                        <p>${data.message || 'Person without proper PPE detected in danger zone'}</p>
-                        <small>${formattedTime}</small>
-                    `;
-                    notificationList.prepend(newNotification);
+                const date = new Date(data.timestamp);
+                const timeStr = date.toLocaleString();
+                
+                let itemContent = `
+                    <div>
+                        <strong>${data.message}</strong>
+                        <div>${timeStr}</div>
+                    </div>
+                `;
+                
+                if (data.screenshot) {
+                    itemContent += `<img src="${data.screenshot}" alt="Alert Screenshot" class="screenshot-preview">`;
                 }
+                
+                item.innerHTML = itemContent;
+                notificationList.prepend(item);
             }
             
-            // Reset notification state
+            // Function to reset notification state
             function resetNotificationState() {
                 unsafeStatus.style.display = 'none';
                 notificationBell.classList.remove('has-alert');
-                notificationBell.innerHTML = '🔔';
+                notificationBell.innerHTML = `<i class="fas fa-bell"></i>`;
                 notificationList.innerHTML = '';
             }
             
-            // Play alert sound
+            // Function to play alert sound
             function playAlertSound() {
                 alertSound.play().catch(e => {
-                    console.error('Error playing alert sound:', e);
+                    console.warn('Could not play alert sound:', e);
                 });
             }
-            
-            // HTTP polling fallback
-            function checkNotifications() {
-                fetch('/api/notifications/status')
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('Polling for notifications:', data);
-                        updateNotificationUI(data);
-                    })
-                    .catch(error => console.error('Error checking notifications:', error));
-            }
-            
-            // Toggle notification panel when bell is clicked
-            notificationBell.addEventListener('click', function() {
-                notificationPanel.classList.toggle('active');
-            });
-            
-            // Close notification panel when clicking outside
-            document.addEventListener('click', function(event) {
-                if (!notificationBell.contains(event.target) && 
-                    !notificationPanel.contains(event.target)) {
-                    notificationPanel.classList.remove('active');
-                }
-            });
-            
-            // Clear all notifications
-            clearAllBtn.addEventListener('click', function() {
-                fetch('/api/notifications/clear', {
-                    method: 'POST'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Notifications cleared');
-                })
-                .catch(error => console.error('Error clearing notifications:', error));
-                
-                notificationPanel.classList.remove('active');
-            });
         });
     </script>
 </body>
