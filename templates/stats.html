@@ -625,10 +625,8 @@
                     ppeChart.data.datasets[0].data = [data.with_ppe, data.without_ppe];
                     ppeChart.update();
                     
-                    // Update timeline chart every 60 seconds
-                    if (new Date().getSeconds() === 0) {
-                        updateTimelineData(data.with_ppe, data.without_ppe);
-                    }
+                    // Update timeline chart with each data fetch
+                    updateTimelineData(data.with_ppe, data.without_ppe);
                     
                     // Store current stats for next comparison
                     prevStats = {
