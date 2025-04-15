@@ -642,47 +642,102 @@
                 });
         }
         
-        // Export data button
-        document.getElementById('export-data-btn').addEventListener('click', function() {
-            // Create CSV data from current stats
-            const stats = {
-                total: document.getElementById('total-persons').textContent,
-                withPPE: document.getElementById('with-ppe').textContent,
-                withoutPPE: document.getElementById('without-ppe').textContent,
-                complianceRate: document.getElementById('compliance-rate').textContent,
-                date: document.getElementById('date').textContent
-            };
-            
-            const csvContent = `Date,Total Persons,With PPE,Without PPE,Compliance Rate\n${stats.date},${stats.total},${stats.withPPE},${stats.withoutPPE},${stats.complianceRate}`;
-            
-            // Create download link
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `ppe_stats_${new Date().toISOString().split('T')[0]}.csv`;
-            
-            // Trigger download
-            document.body.appendChild(a);
-            a.click();
-            
-            // Cleanup
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        });
+        // Fetch stats history
+        function fetchStatsHistory() {
+            fetch('/get_ppe_stats_history')
+                .then(response => response.json())
+                .then(data => {
+                    // Process the historical data for visualization
+                    const timelineLabels = [];
+                    const withPPEData = [];
+                    const withoutPPEData = [];
+                    
+                    // Process last 10 entries for the timeline chart
+                    const displayData = data.slice(-10);
+                    
+                    displayData.forEach(entry => {
+                        const date = new Date(entry.timestamp);
+                        timelineLabels.push(date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+                        withPPEData.push(entry.with_ppe);
+                        withoutPPEData.push(entry.without_ppe);
+                    });
+                    
+                    // Update timeline chart with historical data when in summary view
+                    if (!document.getElementById('realtime-btn').classList.contains('active')) {
+                        timelineChart.data.labels = timelineLabels;
+                        timelineChart.data.datasets[0].data = withPPEData;
+                        timelineChart.data.datasets[1].data = withoutPPEData;
+                        timelineChart.update();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching stats history:', error);
+                });
+        }
         
-        // Toggle views
+        // Update the toggle views buttons to use the appropriate data
         document.getElementById('realtime-btn').addEventListener('click', function() {
             this.classList.add('active');
             document.getElementById('summary-btn').classList.remove('active');
-            // Implementation would switch to real-time view
+            // Switch to real-time data
+            timelineChart.data.labels = Array(10).fill('').map((_, i) => `-${9-i}m`);
+            timelineChart.data.datasets[0].data = timeData.withPPE;
+            timelineChart.data.datasets[1].data = timeData.withoutPPE;
+            timelineChart.update();
         });
         
         document.getElementById('summary-btn').addEventListener('click', function() {
             this.classList.add('active');
             document.getElementById('realtime-btn').classList.remove('active');
-            // Implementation would switch to summary view
+            // Load historical data
+            fetchStatsHistory();
+        });
+        
+        // Call fetchStats immediately and then every second
+        fetchStats();
+        setInterval(fetchStats, 1000);
+        
+        // Call fetchStatsHistory once at startup to load data
+        fetchStatsHistory();
+        // Then also fetch history every minute to update summary view if active
+        setInterval(fetchStatsHistory, 60000);
+        
+        // Modify the export button to include all historical data
+        document.getElementById('export-data-btn').addEventListener('click', function() {
+            fetch('/get_ppe_stats_history')
+                .then(response => response.json())
+                .then(data => {
+                    let csvContent = "Date,Total Persons,With PPE,Without PPE,Compliance Rate\n";
+                    
+                    data.forEach(entry => {
+                        const date = new Date(entry.timestamp).toLocaleString();
+                        const total = entry.total_persons;
+                        const withPPE = entry.with_ppe;
+                        const withoutPPE = entry.without_ppe;
+                        const complianceRate = total > 0 ? Math.round((withPPE / total) * 100) + '%' : '0%';
+                        
+                        csvContent += `${date},${total},${withPPE},${withoutPPE},${complianceRate}\n`;
+                    });
+                    
+                    // Create download link
+                    const blob = new Blob([csvContent], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `ppe_stats_history_${new Date().toISOString().split('T')[0]}.csv`;
+                    
+                    // Trigger download
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // Cleanup
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    console.error('Error exporting stats history:', error);
+                });
         });
         
         // Initialize Socket.IO
@@ -755,10 +810,6 @@
                 }
             });
         });
-        
-        // Fetch stats immediately and then every second
-        fetchStats();
-        setInterval(fetchStats, 1000);
     </script>
 </body>
 </html>

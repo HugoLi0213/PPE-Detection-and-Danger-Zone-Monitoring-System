@@ -8,7 +8,7 @@ import argparse
 import os
 import sys
 import platform
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import cv2
 import numpy as np
@@ -17,6 +17,8 @@ from flask import Flask, Response, jsonify, render_template, request
 from flask_socketio import SocketIO, emit
 from shapely.geometry import Polygon
 from ultralytics import YOLO
+import json
+import time
 
 # Determine if we're on Windows or Linux
 is_windows = platform.system() == "Windows"
@@ -122,8 +124,9 @@ models_dir = os.path.join(base_dir, 'models')
 detected_dir = os.path.join(base_dir, 'detected')
 zone_dir = os.path.join(base_dir, 'zone')
 screenshots_dir = os.path.join(base_dir, 'static', 'screenshots')
+stats_dir = os.path.join(base_dir, 'static', 'stats')
 
-for d in [models_dir, detected_dir, zone_dir, screenshots_dir]:
+for d in [models_dir, detected_dir, zone_dir, screenshots_dir, stats_dir]:
     ensure_dir(d)
     
 # Check if video folder exists, create if not
@@ -151,6 +154,30 @@ zone_current_count = []
 zone_last_count = []
 haveZone = False
 
+# Create path for stats storage
+stats_file = os.path.join(stats_dir, 'ppe_stats_history.json')
+stats_history = []
+stats_last_save_time = None
+
+# Define the load_stats_history function BEFORE it gets called
+def load_stats_history():
+    global stats_history
+    if os.path.exists(stats_file):
+        try:
+            with open(stats_file, 'r') as f:
+                stats_history = json.load(f)
+                
+            # Keep only last 24 hours of data
+            cutoff_time = datetime.now() - timedelta(hours=24)
+            stats_history = [entry for entry in stats_history 
+                            if datetime.fromisoformat(entry['timestamp']) > cutoff_time]
+        except Exception as e:
+            print(f"Error loading stats history: {e}")
+            stats_history = []
+    else:
+        stats_history = []
+
+# Keep the load_zones function unchanged
 def load_zones():
     global zone_list, zone_current_count, zone_last_count, haveZone
     zone_list = []
@@ -161,8 +188,9 @@ def load_zones():
     zone_current_count = [0] * len(zone_list)
     zone_last_count = [0] * len(zone_list)
 
-# Load zones initially
+# Call both functions separately
 load_zones()
+load_stats_history()
 
 # Initialize YOLO models
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -325,6 +353,7 @@ def process_frame(frame, mode="ppe"):
             zone_last_count[:] = zone_current_count[:]
 
     ppe_stats["date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_stats_history()
     return frame, zone_frame_arr, roi_has_unsafe
 
 # Special camera source creator for Jetson Nano
@@ -710,6 +739,32 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     print('Client disconnected')
+
+def save_stats_history():
+    global stats_history, stats_last_save_time
+    current_time = datetime.now()
+    
+    # Only save once per minute to avoid excessive writes
+    if stats_last_save_time is None or (current_time - stats_last_save_time).total_seconds() > 60:
+        stats_last_save_time = current_time
+        
+        # Add current stats to history with timestamp
+        stats_entry = ppe_stats.copy()
+        stats_entry['timestamp'] = current_time.isoformat()
+        stats_history.append(stats_entry)
+        
+        # Keep only last 24 hours of data (1440 minutes)
+        cutoff_time = current_time - timedelta(hours=24)
+        stats_history = [entry for entry in stats_history 
+                        if datetime.fromisoformat(entry['timestamp']) > cutoff_time]
+        
+        # Save to file
+        with open(stats_file, 'w') as f:
+            json.dump(stats_history, f)
+
+@app.route('/get_ppe_stats_history')
+def get_ppe_stats_history():
+    return jsonify(stats_history)
 
 if __name__ == '__main__':
     # Print information about running environment
