@@ -2,6 +2,15 @@
 
 A real-time computer vision system that monitors construction sites to ensure workers are wearing proper Personal Protective Equipment (PPE) and are not entering defined danger zones.
 
+## Recent Improvements (macos branch)
+
+This branch introduces macOS support and several improvements:
+
+- **macOS Support**: Full compatibility with macOS systems
+- **Automatic Video Fallback**: If no camera is detected, the system automatically uses an available video file
+- **Cross-Platform Compatibility**: Works seamlessly across Windows, Linux, and macOS
+- **Improved Error Handling**: Better handling of missing cameras and video sources
+
 ## Recent Improvements (Hugo14april branch)
 
 This branch introduces several significant improvements to the system:
@@ -19,7 +28,7 @@ This branch introduces several significant improvements to the system:
 
 - **PPE Detection**: Automatically detects if workers are wearing helmets and safety vests
 - **Danger Zone Monitoring**: Define custom danger zones and receive alerts when workers enter them
-- **Multi-platform Support**: Works on both Windows and Linux systems, including NVIDIA Jetson Nano
+- **Multi-platform Support**: Works on Windows, Linux, and macOS systems, including NVIDIA Jetson Nano
 - **Flexible Video Sources**: Use webcams, IP cameras, or pre-recorded videos
 - **User-friendly Interface**: Modern web interface with real-time monitoring and alerts
 - **Notification System**: Receive instant alerts for safety violations with screenshots
@@ -30,6 +39,7 @@ This branch introduces several significant improvements to the system:
 - Python 3.7+ (Python 3.9 recommended)
 - NVIDIA GPU recommended for faster inference (supports CPU mode as well)
 - For Jetson Nano: JetPack 4.6+ with CUDA support
+- For macOS: Python 3.8+ with OpenCV and PyTorch
 
 See `requirements.txt` for Python dependencies.
 
@@ -57,7 +67,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-This starts the system using your default camera.
+This starts the system using your default camera if available, or automatically falls back to an available video file if no camera is detected.
 
 ### With a Video File
 ```bash
@@ -70,8 +80,11 @@ python main.py --ip 0.0.0.0 --port 5000
 ```
 Using 0.0.0.0 allows access from other devices on the network.
 
-### Jetson Nano
-On Jetson Nano, the system will automatically detect and use the onboard camera with optimized settings.
+### Platform-Specific Notes
+
+- **Windows**: Uses DirectShow for camera access
+- **Linux/Jetson Nano**: Uses V4L2 and GStreamer for optimized camera access
+- **macOS**: Automatically falls back to video files if no camera is detected
 
 ## UI Instructions
 
@@ -94,7 +107,8 @@ On Jetson Nano, the system will automatically detect and use the onboard camera 
 
 - **Windows**: Uses DirectShow for camera access
 - **Linux/Jetson Nano**: Uses V4L2 and GStreamer for optimized camera access
-- **Both**: Same web interface and detection capabilities
+- **macOS**: Supports camera input with automatic fallback to video files
+- **All Platforms**: Same web interface and detection capabilities
 
 ## Customization
 

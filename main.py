@@ -96,21 +96,35 @@ if args.Input is not None:
         elif args.Input.endswith(".mp4"):
             input_type = "video"
             input_name = os.path.basename(args.Input)
+            current_video_path = args.Input
         else:
             print("Wrong input format, need to be in [*.png, *.jpg, *.jpeg, *.mp4]")
-            exit()
+            sys.exit(1)
     else:
-        print("Input not exist, exiting...")
-        exit()
+        print(f"Input file {args.Input} does not exist")
+        sys.exit(1)
 else:
+    # Check for cameras first
     cameras = get_available_cameras()
     if cameras:
         input_type = "camera"
-        camera_index = cameras[0]["index"]
-        input_name = cameras[0]["name"]
+        input_name = f"Camera {cameras[0]['index']}"
+        camera_index = cameras[0]['index']
     else:
-        print("No camera detected, exiting...")
-        exit()
+        # If no camera is available, try to use a default video file
+        default_videos = ["video.mp4", "V10.mp4", "test2.mp4", "BM13.mp4", "BM12.mp4", "BM11.mp4", "BM02.mp4", "BM01.mp4"]
+        for video in default_videos:
+            if os.path.exists(video):
+                input_type = "video"
+                input_name = video
+                current_video_path = video
+                print(f"No camera detected, using default video: {video}")
+                break
+        
+        # If no default video is found, exit
+        if input_type == "":
+            print("No camera detected and no default video found, exiting...")
+            sys.exit(1)
 
 # Ensure all directories exist with platform-independent paths
 def ensure_dir(directory):
