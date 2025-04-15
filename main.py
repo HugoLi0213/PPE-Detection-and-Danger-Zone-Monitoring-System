@@ -74,7 +74,6 @@ def get_available_cameras():
                 index += 1
     else:
         # Linux approach (works for Jetson Nano)
-        # Check for cameras in /dev/video*
         import glob
         video_devices = glob.glob('/dev/video*')
         for i, device in enumerate(sorted(video_devices)):
@@ -213,6 +212,9 @@ def process_frame(frame, mode="ppe"):
     zone_frame_arr = [frame.copy() for _ in zone_list]
     roi_has_unsafe = False
 
+    # Reset zone_current_count for this frame
+    zone_current_count[:] = [0] * len(zone_list)
+
     # Person detection
     person_results = person_model(frame, device=device)
     person_result = person_results[0]
@@ -264,6 +266,7 @@ def process_frame(frame, mode="ppe"):
         for i, zone_coord in enumerate(zone_list):
             overlap_ratio = ZONE_overlap(person_bbox, zone_coord)
             if overlap_ratio > ZONE_overlap_threshold:
+                # Increment count for this zone in the current frame
                 zone_current_count[i] += 1
                 if not (wearing_helmet and wearing_vest) and mode == "ppe":
                     person_in_danger = True
@@ -300,6 +303,7 @@ def process_frame(frame, mode="ppe"):
         cv2.putText(frame, f"Zone {i} ({zone_current_count[i]})", (zone_coord[0][0], zone_coord[0][1] - 10),
                     cv2.FONT_HERSHEY_PLAIN, 1, zone_color, 2)
 
+    # Trigger alerts based on changes in counts
     if roi_has_unsafe or any(c > 0 for c in zone_current_count):
         current_time = datetime.now()
         if last_alert_time is None or (current_time - last_alert_time).total_seconds() > 3:
@@ -309,7 +313,7 @@ def process_frame(frame, mode="ppe"):
             notification_count += 1
             message = "Person without PPE in zone" if mode == "ppe" else "Person in danger zone"
             for i, count in enumerate(zone_current_count):
-                if count > zone_last_count[i]:
+                if count > 0:  # Only emit alerts for zones with people
                     screenshot_name = save_screenshot(zone_frame_arr[i], i)
                     socketio.emit('safety_alert', {
                         'active': True,
@@ -319,7 +323,6 @@ def process_frame(frame, mode="ppe"):
                         'screenshot': f"screenshots/{screenshot_name}"
                     })
             zone_last_count[:] = zone_current_count[:]
-            zone_current_count[:] = [0] * len(zone_list)
 
     ppe_stats["date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return frame, zone_frame_arr, roi_has_unsafe
