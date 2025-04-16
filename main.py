@@ -36,8 +36,8 @@ parser.add_argument("--port", type=int, default=5000, help="Port to run the serv
 args = parser.parse_args()
 
 # Settings
-draw_helmet = 0
-draw_vest = 0
+draw_helmet = 1
+draw_vest = 1
 text_name_format = "{:s}_{:s}.{:s}"
 screenshot_name_format = "{:s}-{:%Y%m%d-%H%M%S}.{:s}"
 camera_index = 0
@@ -47,11 +47,14 @@ img_rh = 720
 img_rw = 1200
 video_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'video')
 current_video_path = None
+img_oh = 0
+img_ow = 0
+cameras = []
 
 # Model settings
 class ModelSettings:
-    conf_threshold: float = 0.8
-    iou_threshold: float = 0.4
+    conf_threshold: float = 0.5
+    iou_threshold: float = 0.5
 
 # Camera device detection (platform-specific)
 def get_available_cameras():
@@ -460,14 +463,13 @@ def get_available_videos():
 
 @app.route('/set_video_source', methods=['POST'])
 def set_video_source():
-    global input_type, input_name, current_video_path, zone_text_path, camera_index
+    global input_type, input_name, current_video_path, zone_text_path, camera_index, cameras
     data = request.json
     source_type = data.get('source_type')
     
     if source_type == 'camera':
         input_type = 'camera'
         # Get first available camera
-        cameras = get_available_cameras()
         if cameras:
             camera_index = cameras[0]["index"]
             input_name = cameras[0]["name"]
@@ -508,6 +510,7 @@ def manage_video_feed():
 
 @app.route('/manage')
 def manage():
+    global img_ow, img_oh
     # Use current_video_path if available, otherwise use args.Input or camera
     if input_type == "video" or input_type == "image":
         video_source = current_video_path if input_type == "video" and current_video_path else args.Input
@@ -524,6 +527,7 @@ def manage():
 
 @app.route('/save_zone', methods=['POST'])
 def save_zone():
+    global img_ow, img_oh
     try:
         data = request.json
         coordinates = data.get('coordinates', [])
@@ -532,19 +536,6 @@ def save_zone():
         
         # Adjust coordinates for original image dimensions
         # Use current_video_path if available
-        if input_type == "video" or input_type == "image":
-            video_source = current_video_path if input_type == "video" and current_video_path else args.Input
-            cap = cv2.VideoCapture(video_source)
-        else:  # camera
-            cap = create_camera_source(camera_index)
-            
-        success, frame = cap.read()
-        if not success:
-            cap.release()
-            return jsonify({"error": "Failed to load frame"}), 500
-        
-        img_oh, img_ow = frame.shape[:2]
-        cap.release()
         x_ratio = img_ow / img_rw
         y_ratio = img_oh / img_rh
         adjusted_coords = [[int(pt[0] * x_ratio), int(pt[1] * y_ratio)] for pt in coordinates]
@@ -590,27 +581,14 @@ def delete_zone():
 
 @app.route('/get_zones')
 def get_zones():
+    global img_ow, img_oh
     try:
         zones = []
         if os.path.exists(zone_text_path):
             with open(zone_text_path, "r") as f:
                 zones = [eval(line.strip()) for line in f.readlines() if line.strip()]
-        
         # Adjust coordinates for display (scale down to canvas size)
         # Use current_video_path if available
-        if input_type == "video" or input_type == "image":
-            video_source = current_video_path if input_type == "video" and current_video_path else args.Input
-            cap = cv2.VideoCapture(video_source)
-        else:  # camera
-            cap = create_camera_source(camera_index)
-            
-        success, frame = cap.read()
-        if not success:
-            cap.release()
-            return jsonify({"zones": []})
-        
-        img_oh, img_ow = frame.shape[:2]
-        cap.release()
         x_ratio = img_ow / img_rw
         y_ratio = img_oh / img_rh
         adjusted_zones = [[[int(pt[0] / x_ratio), int(pt[1] / y_ratio)] for pt in zone] for zone in zones]
@@ -687,7 +665,7 @@ def get_current_source():
 
 @app.route('/get_available_cameras')
 def get_available_cameras_route():
-    cameras = get_available_cameras()
+    global cameras
     return jsonify({"cameras": cameras})
 
 @app.route('/set_camera', methods=['POST'])
@@ -775,7 +753,8 @@ if __name__ == '__main__':
     print(f"CUDA available: {torch.cuda.is_available()}")
     if torch.cuda.is_available():
         print(f"CUDA device: {torch.cuda.get_device_name(0)}")
-    
+        print(f"CUDA Version: {torch.version.cuda}")
+        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
     # Start the server
     print(f"Starting server at http://{args.ip}:{args.port}")
     socketio.run(app, host=args.ip, port=args.port, debug=True)
