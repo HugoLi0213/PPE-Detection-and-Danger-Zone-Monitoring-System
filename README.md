@@ -1,6 +1,7 @@
 # PPE Detection and Danger Zone Monitoring System
 
 A real-time computer vision system that monitors construction sites to ensure workers are wearing proper Personal Protective Equipment (PPE) and are not entering defined danger zones.
+https://hub.ultralytics.com/models/UNwgMDZ5QChZ1tfzQS9S(yolo v11)
 
 ## Recent Improvements (Hugo14april branch)
 
