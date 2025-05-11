@@ -15,6 +15,10 @@ This branch introduces several significant improvements to the system:
 - **Fixed Zone Management**: Improved zone creation and management with proper source-specific zones
 - **Platform-Independent Paths**: Robust file handling across different operating systems
 - **Command-Line Flexibility**: Added options to specify server IP and port for network accessibility
+Why all functions in one main.py?
+Simplified Deployment: Single file is easy to distribute and run, reducing setup complexity.Good for jetson!
+Faster Development: All code in one place speeds up coding, testing, and debugging.
+Self-Contained: Includes all logic and settings, ideal for sharing and quick setup.
 
 ## Features
 
