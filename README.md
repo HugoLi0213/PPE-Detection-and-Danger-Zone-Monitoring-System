@@ -3,7 +3,7 @@
 A real-time computer vision system that monitors construction sites to ensure workers are wearing proper Personal Protective Equipment (PPE) and are not entering defined danger zones.
 https://hub.ultralytics.com/models/UNwgMDZ5QChZ1tfzQS9S (yolo v11)
 
-## Recent Improvements (Hugo14april branch)
+## Recent Improvements 
 
 This branch introduces several significant improvements to the system:
 
@@ -11,14 +11,13 @@ This branch introduces several significant improvements to the system:
 - **Cross-Platform Support**: Complete compatibility with both Windows PCs and Jetson Nano devices
 - **Video Source Selection**: New UI component to easily switch between camera and video files
 - **Multiple Camera Support**: Dropdown menu to select from available cameras on the system
-- **Jetson Nano Optimization**: Special camera handling with GStreamer for optimal performance on Jetson devices
+- **Jetson Nano Optimization**: Special camera handling with GStreamer for optimal performance on Jetson devices,Simplified Deployment: A single .py file streamlines distribution and setup, ideal for quick deployment across platforms.
+Rapid Development and Testing: Centralized code enables faster iteration, debugging, and prototyping without managing multiple modules.
+Embedded System Compatibility: Self-contained structure optimizes performance on resource-constrained devices like Jetson Nano.
 - **Fixed Zone Management**: Improved zone creation and management with proper source-specific zones
 - **Platform-Independent Paths**: Robust file handling across different operating systems
 - **Command-Line Flexibility**: Added options to specify server IP and port for network accessibility
-- **Why all functions in one main.py?
-- **Simplified Deployment: Single file is easy to distribute and run, reducing setup complexity.Good for jetson!
-- **Faster Development: All code in one place speeds up coding, testing, and debugging.
-- **Self-Contained: Includes all logic and settings, ideal for sharing and quick setup.
+
 
 ## Features
 
